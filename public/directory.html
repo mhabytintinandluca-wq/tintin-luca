@@ -815,10 +815,12 @@ body { font-family:'Kanit',sans-serif; background:var(--cream); color:var(--text
 .admin-content {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   display: none;
   flex-direction: column;
 }
 .admin-content.active { display: flex; }
+.admin-content * { box-sizing: border-box; }
 
 /* Admin toolbar */
 .admin-toolbar {
@@ -1088,7 +1090,7 @@ body { font-family:'Kanit',sans-serif; background:var(--cream); color:var(--text
   .detail-review-photos img { width: 55px; height: 55px; border-radius: 10px; }
   .map-count { bottom: 10px; left: 10px; padding: 6px 10px; font-size: 11px; }
 
-  /* Admin Panel */
+  /* Admin Panel - Full responsive */
   .admin-panel { width: 100%; max-width: 100vw; }
   .admin-header { padding: 14px 16px; }
   .admin-header h2 { font-size: 16px; }
@@ -1100,6 +1102,23 @@ body { font-family:'Kanit',sans-serif; background:var(--cream); color:var(--text
   .admin-form-wrap { padding: 12px 14px; gap: 10px; }
   .form-row { flex-direction: column; gap: 10px; }
   .form-group input, .form-group textarea, .form-group select { padding: 8px 12px; font-size: 13px; }
+
+  /* Admin Tab Panes - prevent overflow */
+  .admin-tab-pane { overflow-x: hidden !important; }
+  .admin-tab-pane input,
+  .admin-tab-pane textarea,
+  .admin-tab-pane select {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .admin-tab-pane > div {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+  /* Dashboard summary grid */
+  #pane-dashboard > div:nth-child(2) {
+    grid-template-columns: 1fr 1fr 1fr !important;
+  }
 }
 
 @media (max-width: 360px) {
@@ -1379,6 +1398,10 @@ function selectPlace(id) {
   const p = PLACES.find(x => x.id === id);
   if (!p) return;
   selectedPlace = p;
+  
+  // Track view
+  trackView(id, p.name);
+  
   renderCards();
   renderMarkers(getFiltered());
   map.flyTo([p.lat, p.lng], 15, { duration: 0.8 });
@@ -1453,9 +1476,10 @@ initMap();
   <div class="admin-content" id="adminContent">
     <!-- Admin Tabs -->
     <div style="display:flex;border-bottom:2px solid #f0e6da;background:#fff;flex-shrink:0;">
-      <button class="admin-tab-btn active" onclick="switchAdminTab('places')" id="atab-places" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:600;color:#8D6E63;cursor:pointer;border:none;background:none;font-family:'Kanit',sans-serif;position:relative;">📍 สถานที่</button>
-      <button class="admin-tab-btn" onclick="switchAdminTab('profile')" id="atab-profile" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:600;color:#8D6E63;cursor:pointer;border:none;background:none;font-family:'Kanit',sans-serif;">🐕 โปรไฟล์</button>
-      <button class="admin-tab-btn" onclick="switchAdminTab('settings')" id="atab-settings" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:600;color:#8D6E63;cursor:pointer;border:none;background:none;font-family:'Kanit',sans-serif;">⚙️ ตั้งค่า</button>
+      <button class="admin-tab-btn active" onclick="switchAdminTab('places')" id="atab-places" style="flex:1;padding:10px;text-align:center;font-size:11px;font-weight:600;color:#8D6E63;cursor:pointer;border:none;background:none;font-family:'Kanit',sans-serif;position:relative;">📍 สถานที่</button>
+      <button class="admin-tab-btn" onclick="switchAdminTab('dashboard')" id="atab-dashboard" style="flex:1;padding:10px;text-align:center;font-size:11px;font-weight:600;color:#8D6E63;cursor:pointer;border:none;background:none;font-family:'Kanit',sans-serif;">📊 สถิติ</button>
+      <button class="admin-tab-btn" onclick="switchAdminTab('profile')" id="atab-profile" style="flex:1;padding:10px;text-align:center;font-size:11px;font-weight:600;color:#8D6E63;cursor:pointer;border:none;background:none;font-family:'Kanit',sans-serif;">🐕 โปรไฟล์</button>
+      <button class="admin-tab-btn" onclick="switchAdminTab('settings')" id="atab-settings" style="flex:1;padding:10px;text-align:center;font-size:11px;font-weight:600;color:#8D6E63;cursor:pointer;border:none;background:none;font-family:'Kanit',sans-serif;">⚙️ ตั้งค่า</button>
     </div>
 
     <!-- TAB: Places -->
@@ -1506,10 +1530,21 @@ initMap();
       </div>
 
       <div class="form-group">
-        <label>URL รูปภาพ</label>
-        <input type="text" id="f_img" placeholder="https://..." oninput="previewImg()">
-        <div class="img-preview" id="imgPreview">📷 Preview รูปภาพ</div>
-        <span class="form-hint">อัปโหลดรูปที่ Cloudinary / imgbb แล้ววาง URL</span>
+        <label>📸 รูปภาพ (สูงสุด 8 รูป)</label>
+        <div id="photoUploadArea" style="border:2px dashed #ddd3c7;border-radius:14px;padding:12px;background:#FAF5EF;min-height:80px;">
+          <div id="photoGrid" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <label id="photoAddBtn" style="display:flex;align-items:center;gap:6px;background:#fff;border:2px solid #e0d6cc;border-radius:10px;padding:8px 14px;cursor:pointer;font-size:12px;font-weight:600;color:#8D6E63;font-family:'Kanit',sans-serif;">
+              📷 เพิ่มรูป
+              <input type="file" accept="image/*" multiple id="photoFileInput" style="display:none;" onchange="handlePhotoUpload(event)">
+            </label>
+            <span id="photoCount" style="font-size:10px;color:#8D6E63;">0/8 รูป</span>
+          </div>
+          <div style="font-size:10px;color:#8D6E63;margin-top:6px;font-style:italic;">กดเพิ่มรูป หรือวาง URL ด้านล่าง (รูปแรกจะเป็นภาพหลัก)</div>
+        </div>
+        <div style="margin-top:6px;">
+          <input type="text" id="f_img_url" placeholder="หรือวาง URL รูปภาพ แล้วกด Enter" style="width:100%;padding:8px 12px;border:2px solid #ece4db;border-radius:10px;font-size:12px;font-family:'Kanit',sans-serif;outline:none;" onkeydown="if(event.key==='Enter'){event.preventDefault();addPhotoByUrl();}">
+        </div>
       </div>
 
       <div class="form-group">
@@ -1583,6 +1618,42 @@ initMap();
       </div>
     </div>
     </div><!-- end pane-places -->
+
+    <!-- TAB: Dashboard -->
+    <div class="admin-tab-pane" id="pane-dashboard" style="display:none;flex:1;overflow-y:auto;padding:16px;">
+      <h3 style="font-family:'Quicksand',sans-serif;font-size:17px;font-weight:700;color:#3E2723;margin-bottom:14px;">📊 สถิติ Views</h3>
+      
+      <!-- Summary Cards -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+        <div style="background:linear-gradient(135deg,#F2994A,#E07C24);border-radius:14px;padding:14px;text-align:center;color:#fff;">
+          <div id="dashTotal" style="font-family:'Quicksand',sans-serif;font-size:28px;font-weight:700;">0</div>
+          <div style="font-size:10px;opacity:0.9;">Views ทั้งหมด</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#66BB6A,#43A047);border-radius:14px;padding:14px;text-align:center;color:#fff;">
+          <div id="dashToday" style="font-family:'Quicksand',sans-serif;font-size:28px;font-weight:700;">0</div>
+          <div style="font-size:10px;opacity:0.9;">Views วันนี้</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#7C3AED,#6D28D9);border-radius:14px;padding:14px;text-align:center;color:#fff;">
+          <div id="dashPlaces" style="font-family:'Quicksand',sans-serif;font-size:28px;font-weight:700;">0</div>
+          <div style="font-size:10px;opacity:0.9;">สถานที่ทั้งหมด</div>
+        </div>
+      </div>
+
+      <!-- View Ranking -->
+      <div style="background:#fff;border:1.5px solid #f0e6da;border-radius:14px;padding:16px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:700;color:#8D6E63;text-transform:uppercase;">🏆 อันดับ Views สูงสุด</label>
+          <button onclick="resetViews()" style="font-size:10px;color:#E53935;background:none;border:1px solid #FECACA;border-radius:8px;padding:4px 10px;cursor:pointer;font-family:'Kanit';">รีเซ็ต</button>
+        </div>
+        <div id="dashRanking"></div>
+      </div>
+
+      <!-- Recent Views Log -->
+      <div style="background:#fff;border:1.5px solid #f0e6da;border-radius:14px;padding:16px;">
+        <label style="font-size:12px;font-weight:700;color:#8D6E63;text-transform:uppercase;margin-bottom:10px;display:block;">📋 Views ล่าสุด (50 รายการ)</label>
+        <div id="dashLog" style="max-height:300px;overflow-y:auto;font-size:11px;"></div>
+      </div>
+    </div>
 
     <!-- TAB: Profile -->
     <div class="admin-tab-pane" id="pane-profile" style="display:none;flex:1;overflow-y:auto;padding:16px;">
@@ -1751,6 +1822,7 @@ function switchAdminTab(tab) {
   const pane = document.getElementById('pane-' + tab);
   if (pane) pane.style.display = 'flex';
   if (tab === 'profile') loadProfileToForm();
+  if (tab === 'dashboard') renderDashboard();
 }
 
 // ===== PARSE GOOGLE MAPS LINK =====
@@ -1826,6 +1898,71 @@ function renderAdminList() {
 }
 
 // ===== SHOW FORM =====
+// ===== PHOTO UPLOAD STATE =====
+let formPhotos = []; // array of URLs (or base64)
+
+function renderPhotoGrid() {
+  const grid = document.getElementById('photoGrid');
+  const count = document.getElementById('photoCount');
+  grid.innerHTML = formPhotos.map((url, i) =>
+    '<div style="width:64px;height:64px;border-radius:10px;background:url(' + url + ') center/cover;border:2px solid ' + (i===0?'#F2994A':'#f0e6da') + ';position:relative;flex-shrink:0;">' +
+      (i===0 ? '<span style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);background:#F2994A;color:#fff;font-size:8px;padding:1px 6px;border-radius:6px;white-space:nowrap;">ภาพหลัก</span>' : '') +
+      '<button onclick="removePhoto('+i+')" style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:#E53935;color:#fff;border:2px solid #fff;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>' +
+    '</div>'
+  ).join('');
+  count.textContent = formPhotos.length + '/8 รูป';
+}
+
+function removePhoto(idx) {
+  formPhotos.splice(idx, 1);
+  renderPhotoGrid();
+}
+
+function addPhotoByUrl() {
+  const input = document.getElementById('f_img_url');
+  const url = input.value.trim();
+  if (!url || !url.startsWith('http')) { alert('กรุณาใส่ URL ที่ถูกต้อง'); return; }
+  if (formPhotos.length >= 8) { alert('รูปภาพเต็มแล้ว (สูงสุด 8 รูป)'); return; }
+  formPhotos.push(url);
+  input.value = '';
+  renderPhotoGrid();
+}
+
+function handlePhotoUpload(e) {
+  const files = Array.from(e.target.files);
+  const remaining = 8 - formPhotos.length;
+  if (remaining <= 0) { alert('รูปภาพเต็มแล้ว (สูงสุด 8 รูป)'); return; }
+  
+  files.slice(0, remaining).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      // Compress image using canvas
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const MAX = 800; // max dimension
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+          else { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const compressed = canvas.toDataURL('image/jpeg', 0.7);
+        if (formPhotos.length < 8) {
+          formPhotos.push(compressed);
+          renderPhotoGrid();
+        }
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+  e.target.value = ''; // reset
+}
+
+// ===== SHOW FORM =====
 function showForm(id) {
   editingId = id;
   document.getElementById('adminList').style.display = 'none';
@@ -1839,11 +1976,9 @@ function showForm(id) {
     document.getElementById('f_name').value = p.name;
     document.getElementById('f_cat').value = p.cat;
     document.getElementById('f_petSize').value = p.petSize;
-    document.getElementById('f_desc').value = p.desc;
-    document.getElementById('f_img').value = p.img;
     document.getElementById('f_lat').value = p.lat;
     document.getElementById('f_lng').value = p.lng;
-    document.getElementById('f_maplink').value = 'https://www.google.com/maps?q=' + p.lat + ',' + p.lng;
+    document.getElementById('f_maplink').value = p.mapLink || ('https://www.google.com/maps?q=' + p.lat + ',' + p.lng);
     document.getElementById('mapLinkStatus').innerHTML = '✅ พิกัด: ' + p.lat.toFixed(4) + ', ' + p.lng.toFixed(4);
     document.getElementById('mapLinkStatus').style.color = '#16A34A';
     document.getElementById('f_area').value = p.area;
@@ -1853,39 +1988,33 @@ function showForm(id) {
     document.getElementById('f_hours').value = p.hours || '';
     document.getElementById('f_price').value = p.price || '฿฿';
     document.getElementById('f_comment').value = p.comment || '';
+    document.getElementById('f_desc').value = p.desc || '';
     document.getElementById('f_active').value = p.active !== false ? 'true' : 'false';
-    previewImg();
+    // Load photos
+    formPhotos = [...(p.photos || [])];
+    if (formPhotos.length === 0 && p.img) formPhotos = [p.img];
+    renderPhotoGrid();
   } else {
     document.getElementById('formTitle').innerHTML = '➕ เพิ่มสถานที่ใหม่';
-    ['f_name','f_petSize','f_desc','f_img','f_lat','f_lng','f_maplink','f_area','f_tel','f_score','f_comment','f_hours'].forEach(id => document.getElementById(id).value = '');
+    ['f_name','f_petSize','f_desc','f_lat','f_lng','f_maplink','f_area','f_tel','f_score','f_comment','f_hours'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('f_cat').value = 'cafe';
     document.getElementById('f_reviewer').value = 'TinTin';
     document.getElementById('f_price').value = '฿฿';
     document.getElementById('f_active').value = 'true';
-    document.getElementById('imgPreview').style.backgroundImage = '';
-    document.getElementById('imgPreview').textContent = '📷 Preview รูปภาพ';
     document.getElementById('mapLinkStatus').innerHTML = '';
+    document.getElementById('f_img_url').value = '';
+    formPhotos = [];
+    renderPhotoGrid();
   }
 }
 
 function hideForm() {
   editingId = null;
+  formPhotos = [];
   document.getElementById('adminForm').classList.remove('active');
   document.getElementById('adminList').style.display = 'flex';
   document.querySelector('.admin-toolbar').style.display = 'flex';
   renderAdminList();
-}
-
-function previewImg() {
-  const url = document.getElementById('f_img').value;
-  const el = document.getElementById('imgPreview');
-  if (url && url.startsWith('http')) {
-    el.style.backgroundImage = 'url(' + url + ')';
-    el.textContent = '';
-  } else {
-    el.style.backgroundImage = '';
-    el.textContent = '📷 Preview รูปภาพ';
-  }
 }
 
 // ===== SAVE PLACE =====
@@ -1894,16 +2023,16 @@ function savePlace() {
   const name = document.getElementById('f_name').value.trim();
   if (!name) { alert('กรุณาใส่ชื่อสถานที่'); return; }
 
-  const mapLink = document.getElementById('f_maplink').value.trim();
+  const mainImg = formPhotos.length > 0 ? formPhotos[0] : 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&h=300&fit=crop';
   const data = {
     name: name,
     cat: document.getElementById('f_cat').value,
     catLabel: catLabels[document.getElementById('f_cat').value] || '',
     desc: document.getElementById('f_desc').value.trim(),
-    img: document.getElementById('f_img').value.trim() || 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&h=300&fit=crop',
+    img: mainImg,
     lat: parseFloat(document.getElementById('f_lat').value) || 13.74,
     lng: parseFloat(document.getElementById('f_lng').value) || 100.56,
-    mapLink: mapLink,
+    mapLink: document.getElementById('f_maplink').value.trim(),
     tel: document.getElementById('f_tel').value.trim(),
     petSize: document.getElementById('f_petSize').value.trim() || 'S, M, L',
     score: parseFloat(document.getElementById('f_score').value) || 4.0,
@@ -1916,7 +2045,7 @@ function savePlace() {
       : 'https://images.unsplash.com/photo-1583337130417-13571c84e434?w=60&h=60&fit=crop',
     reviewDate: new Date().toLocaleDateString('th-TH', { day:'numeric', month:'short', year:'numeric' }),
     comment: document.getElementById('f_comment').value.trim(),
-    photos: [document.getElementById('f_img').value.trim() || 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=100&h=100&fit=crop'],
+    photos: formPhotos.length > 0 ? [...formPhotos] : [mainImg],
     active: document.getElementById('f_active').value === 'true',
   };
 
@@ -1945,6 +2074,106 @@ function deletePlace(id) {
   renderCats();
   renderCards();
   renderMarkers(getFiltered());
+}
+
+// ===== VIEW TRACKING =====
+const STORAGE_VIEWS = 'tl_views';
+const STORAGE_VIEWLOG = 'tl_viewlog';
+
+function trackView(placeId, placeName) {
+  // Increment counter
+  const views = getViewCounts();
+  views[placeId] = (views[placeId] || 0) + 1;
+  localStorage.setItem(STORAGE_VIEWS, JSON.stringify(views));
+  
+  // Log entry
+  const log = getViewLog();
+  log.unshift({
+    id: placeId,
+    name: placeName,
+    time: new Date().toISOString()
+  });
+  // Keep last 200 entries
+  if (log.length > 200) log.length = 200;
+  localStorage.setItem(STORAGE_VIEWLOG, JSON.stringify(log));
+}
+
+function getViewCounts() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_VIEWS)) || {}; } catch(e) { return {}; }
+}
+
+function getViewLog() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_VIEWLOG)) || []; } catch(e) { return []; }
+}
+
+function resetViews() {
+  if (!confirm('รีเซ็ตสถิติ Views ทั้งหมด?')) return;
+  localStorage.removeItem(STORAGE_VIEWS);
+  localStorage.removeItem(STORAGE_VIEWLOG);
+  renderDashboard();
+}
+
+// ===== DASHBOARD =====
+function renderDashboard() {
+  const views = getViewCounts();
+  const log = getViewLog();
+  const today = new Date().toISOString().slice(0, 10);
+  
+  // Total views
+  const totalViews = Object.values(views).reduce((a, b) => a + b, 0);
+  document.getElementById('dashTotal').textContent = totalViews.toLocaleString();
+  
+  // Today views
+  const todayViews = log.filter(l => l.time.slice(0, 10) === today).length;
+  document.getElementById('dashToday').textContent = todayViews.toLocaleString();
+  
+  // Total places
+  document.getElementById('dashPlaces').textContent = PLACES.length;
+  
+  // Ranking
+  const ranking = PLACES.map(p => ({
+    id: p.id, name: p.name, cat: p.catLabel, area: p.area,
+    views: views[p.id] || 0,
+    todayViews: log.filter(l => l.id === p.id && l.time.slice(0, 10) === today).length
+  })).sort((a, b) => b.views - a.views);
+  
+  const rankEl = document.getElementById('dashRanking');
+  if (ranking.length === 0) {
+    rankEl.innerHTML = '<p style="text-align:center;color:#8D6E63;font-size:13px;">ยังไม่มีข้อมูล</p>';
+  } else {
+    rankEl.innerHTML = ranking.map((r, i) => {
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1) + '.';
+      const barWidth = totalViews > 0 ? Math.round(r.views / ranking[0].views * 100) : 0;
+      return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f5ece3;">' +
+        '<span style="font-size:16px;width:28px;text-align:center;">' + medal + '</span>' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-size:13px;font-weight:600;color:#3E2723;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + r.name + '</div>' +
+          '<div style="font-size:10px;color:#8D6E63;">' + r.cat + ' · ' + r.area + '</div>' +
+          '<div style="background:#f5ece3;border-radius:4px;height:6px;margin-top:4px;overflow:hidden;"><div style="background:linear-gradient(90deg,#F2994A,#FFB300);height:100%;width:' + barWidth + '%;border-radius:4px;transition:width 0.5s;"></div></div>' +
+        '</div>' +
+        '<div style="text-align:right;flex-shrink:0;">' +
+          '<div style="font-family:Quicksand,sans-serif;font-size:18px;font-weight:700;color:#F2994A;">' + r.views + '</div>' +
+          '<div style="font-size:9px;color:#8D6E63;">วันนี้ +' + r.todayViews + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+  
+  // Recent log
+  const logEl = document.getElementById('dashLog');
+  const recentLog = log.slice(0, 50);
+  if (recentLog.length === 0) {
+    logEl.innerHTML = '<p style="text-align:center;color:#8D6E63;">ยังไม่มี views</p>';
+  } else {
+    logEl.innerHTML = recentLog.map(l => {
+      const d = new Date(l.time);
+      const timeStr = d.toLocaleDateString('th-TH', {day:'numeric',month:'short'}) + ' ' + d.toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'});
+      return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f9f3ec;">' +
+        '<span style="color:#3E2723;">👁️ ' + l.name + '</span>' +
+        '<span style="color:#8D6E63;flex-shrink:0;margin-left:8px;">' + timeStr + '</span>' +
+      '</div>';
+    }).join('');
+  }
 }
 
 // ===== PROFILE MANAGEMENT =====
