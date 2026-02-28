@@ -1018,6 +1018,98 @@ body { font-family:'Kanit',sans-serif; background:var(--cream); color:var(--text
 }
 .btn-cancel:hover { background: #f5ece3; }
 .form-hint { font-size: 10px; color: var(--text-light); font-style: italic; }
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media (max-width: 768px) {
+  /* Header */
+  .header-inner { padding: 16px 14px 12px; gap: 10px; }
+  .logo-paws { width: 40px; height: 40px; font-size: 20px; border-radius: 12px; }
+  .logo-text h1 { font-size: 17px; }
+  .logo-text p { font-size: 12px; }
+  .btn-profile { padding: 6px 10px; font-size: 11px; border-radius: 10px; }
+  .btn-admin-gear { width: 34px; height: 34px; font-size: 15px; border-radius: 10px; }
+  .nav-tab { padding: 10px; font-size: 12px; }
+
+  /* Profile - Stack vertically */
+  .profile-section { padding: 16px 14px; }
+  .profile-hero { flex-direction: column; padding: 20px 16px; gap: 16px; text-align: center; }
+  .profile-avatars { justify-content: center; }
+  .avatar-circle { width: 80px; height: 80px; }
+  .avatar-circle:nth-child(2) { margin-left: -20px; }
+  .profile-info h2 { font-size: 22px; }
+  .profile-info .tagline { font-size: 16px; }
+  .profile-info .bio { font-size: 13px; max-width: 100%; }
+  .profile-stats { flex-wrap: wrap; justify-content: center; gap: 8px; }
+  .stat-box { padding: 8px 14px; }
+  .stat-box .num { font-size: 18px; }
+  .stat-box .label { font-size: 10px; }
+
+  /* Dog cards - Stack vertically */
+  .dog-cards { grid-template-columns: 1fr; gap: 12px; }
+  .dog-card { padding: 16px; gap: 14px; }
+  .dog-avatar { width: 60px; height: 60px; }
+  .dog-info h3 { font-size: 16px; }
+  .dog-info .breed { font-size: 11px; }
+  .dog-info .personality { font-size: 12px; }
+  .dog-info .review-style { font-size: 10px; }
+
+  /* Directory - Full width vertical */
+  .directory-section.active { flex-direction: column; height: auto; min-height: calc(100vh - 100px); }
+  .dir-left { width: 100%; flex-shrink: 0; }
+  .dir-right { height: 300px; flex: none; border-radius: 16px; margin-top: 8px; }
+  .dir-list { max-height: none; overflow-y: visible; }
+  .dir-count { font-size: 11px; padding: 2px 0 8px; }
+  .cat-chip { padding: 6px 12px; font-size: 11px; }
+
+  /* Place Cards */
+  .p-card-top { height: 120px; }
+  .p-card-body { padding: 10px 12px 12px; }
+  .p-card-name { font-size: 14px; }
+  .p-card-meta { font-size: 10px; gap: 6px; }
+  .p-card-comment { font-size: 13px; }
+  .review-thumb { width: 30px; height: 30px; border-radius: 8px; }
+  .review-thumb-more { width: 30px; height: 30px; border-radius: 8px; font-size: 9px; }
+
+  /* Detail overlay - full screen on mobile */
+  .detail-overlay { max-height: 80%; border-radius: 20px 20px 0 0; }
+  .detail-img { height: 150px; margin: 8px 12px 0; border-radius: 14px; }
+  .detail-body { padding: 12px 14px 20px; }
+  .detail-title { font-size: 20px; }
+  .detail-paw-score { font-size: 26px; }
+  .detail-desc { font-size: 13px; }
+  .detail-info-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .info-item { padding: 8px 10px; }
+  .info-item .icon { font-size: 16px; }
+  .info-item .val { font-size: 12px; }
+  .info-item .lbl { font-size: 9px; }
+  .detail-actions { flex-direction: column; gap: 6px; }
+  .btn-act { padding: 10px; font-size: 12px; }
+  .detail-review-text { font-size: 15px; }
+  .detail-review-photos img { width: 55px; height: 55px; border-radius: 10px; }
+  .map-count { bottom: 10px; left: 10px; padding: 6px 10px; font-size: 11px; }
+
+  /* Admin Panel */
+  .admin-panel { width: 100%; max-width: 100vw; }
+  .admin-header { padding: 14px 16px; }
+  .admin-header h2 { font-size: 16px; }
+  .admin-toolbar { padding: 10px 14px; flex-wrap: wrap; gap: 6px; }
+  .admin-item { padding: 10px 12px; gap: 10px; }
+  .admin-item-img { width: 44px; height: 44px; border-radius: 10px; }
+  .admin-item-info h4 { font-size: 13px; }
+  .admin-item-info .sub { font-size: 10px; }
+  .admin-form-wrap { padding: 12px 14px; gap: 10px; }
+  .form-row { flex-direction: column; gap: 10px; }
+  .form-group input, .form-group textarea, .form-group select { padding: 8px 12px; font-size: 13px; }
+}
+
+@media (max-width: 360px) {
+  .header-inner { padding: 12px 10px 10px; }
+  .logo-paws { width: 34px; height: 34px; font-size: 18px; }
+  .logo-text h1 { font-size: 15px; }
+  .btn-profile { font-size: 10px; padding: 5px 8px; }
+  .profile-stats { gap: 6px; }
+  .stat-box { padding: 6px 10px; }
+}
 </style>
 </head>
 <body>
@@ -1561,7 +1653,7 @@ function showForm(id) {
     document.getElementById('f_name').value = p.name;
     document.getElementById('f_cat').value = p.cat;
     document.getElementById('f_petSize').value = p.petSize;
-    document.getElementById('f_desc').value = p.description;
+    document.getElementById('f_desc').value = p.desc;
     document.getElementById('f_img').value = p.img;
     document.getElementById('f_lat').value = p.lat;
     document.getElementById('f_lng').value = p.lng;
@@ -1616,7 +1708,7 @@ function savePlace() {
     name: name,
     cat: document.getElementById('f_cat').value,
     catLabel: catLabels[document.getElementById('f_cat').value] || '',
-    description: document.getElementById('f_desc').value.trim(),
+    desc: document.getElementById('f_desc').value.trim(),
     img: document.getElementById('f_img').value.trim() || 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&h=300&fit=crop',
     lat: parseFloat(document.getElementById('f_lat').value) || 13.74,
     lng: parseFloat(document.getElementById('f_lng').value) || 100.56,
