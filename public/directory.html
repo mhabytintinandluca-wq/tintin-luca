@@ -1439,15 +1439,27 @@ initMap();
   <!-- Login -->
   <div class="admin-login" id="adminLogin">
     <div class="lock-icon">🔐</div>
-    <h3>Admin Access</h3>
-    <p>ใส่ PIN เพื่อจัดการข้อมูลสถานที่</p>
-    <input type="password" class="admin-pin-input" id="pinInput" maxlength="4" placeholder="••••" onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="btn-login" onclick="doLogin()">เข้าสู่ระบบ</button>
-    <p style="font-size:11px;color:#bbb;margin-top:8px">Demo PIN: 1234</p>
+    <h3 id="loginTitle">Admin Access</h3>
+    <p id="loginMsg">ใส่ Password เพื่อจัดการข้อมูล</p>
+    <input type="password" class="admin-pw-input" id="pwInput" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()" style="width:260px;padding:12px 16px;border:2px solid #FDDCB5;border-radius:14px;font-size:16px;font-family:'Kanit',sans-serif;text-align:center;color:#3E2723;background:#fff;outline:none;">
+    <div id="pwSetupWrap" style="display:none;width:260px;">
+      <input type="password" class="admin-pw-input" id="pwConfirm" placeholder="ยืนยัน Password" onkeydown="if(event.key==='Enter')doSetup()" style="width:100%;padding:12px 16px;border:2px solid #FDDCB5;border-radius:14px;font-size:16px;font-family:'Kanit',sans-serif;text-align:center;color:#3E2723;background:#fff;outline:none;margin-top:8px;">
+    </div>
+    <button class="btn-login" id="btnLogin" onclick="doLogin()">เข้าสู่ระบบ</button>
+    <p id="pwNote" style="font-size:11px;color:#F2994A;margin-top:8px;font-weight:600"></p>
   </div>
 
   <!-- Content (after login) -->
   <div class="admin-content" id="adminContent">
+    <!-- Admin Tabs -->
+    <div style="display:flex;border-bottom:2px solid #f0e6da;background:#fff;flex-shrink:0;">
+      <button class="admin-tab-btn active" onclick="switchAdminTab('places')" id="atab-places" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:600;color:#8D6E63;cursor:pointer;border:none;background:none;font-family:'Kanit',sans-serif;position:relative;">📍 สถานที่</button>
+      <button class="admin-tab-btn" onclick="switchAdminTab('profile')" id="atab-profile" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:600;color:#8D6E63;cursor:pointer;border:none;background:none;font-family:'Kanit',sans-serif;">🐕 โปรไฟล์</button>
+      <button class="admin-tab-btn" onclick="switchAdminTab('settings')" id="atab-settings" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:600;color:#8D6E63;cursor:pointer;border:none;background:none;font-family:'Kanit',sans-serif;">⚙️ ตั้งค่า</button>
+    </div>
+
+    <!-- TAB: Places -->
+    <div class="admin-tab-pane active" id="pane-places" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
     <!-- Toolbar -->
     <div class="admin-toolbar">
       <span class="place-count" id="adminCount">🐾 6 สถานที่</span>
@@ -1500,15 +1512,13 @@ initMap();
         <span class="form-hint">อัปโหลดรูปที่ Cloudinary / imgbb แล้ววาง URL</span>
       </div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label>Latitude</label>
-          <input type="number" step="any" id="f_lat" placeholder="13.7372">
-        </div>
-        <div class="form-group">
-          <label>Longitude</label>
-          <input type="number" step="any" id="f_lng" placeholder="100.5628">
-        </div>
+      <div class="form-group">
+        <label>🗺️ Google Maps Link</label>
+        <input type="text" id="f_maplink" placeholder="วาง Google Maps link ที่นี่" oninput="parseMapLink()">
+        <span class="form-hint">เปิด Google Maps → กดแชร์ → คัดลอกลิงก์ แล้ววางที่นี่</span>
+        <div id="mapLinkStatus" style="font-size:11px;margin-top:4px;color:#8D6E63;"></div>
+        <input type="hidden" id="f_lat">
+        <input type="hidden" id="f_lng">
       </div>
 
       <div class="form-row">
@@ -1572,6 +1582,81 @@ initMap();
         <button class="btn-save" onclick="savePlace()">💾 บันทึก</button>
       </div>
     </div>
+    </div><!-- end pane-places -->
+
+    <!-- TAB: Profile -->
+    <div class="admin-tab-pane" id="pane-profile" style="display:none;flex:1;overflow-y:auto;padding:16px;">
+      <h3 style="font-family:'Quicksand',sans-serif;font-size:17px;font-weight:700;color:#3E2723;margin-bottom:14px;">🐕 แก้ไขโปรไฟล์</h3>
+      
+      <div style="background:#fff;border:1.5px solid #f0e6da;border-radius:14px;padding:16px;margin-bottom:12px;">
+        <label style="font-size:11px;font-weight:700;color:#8D6E63;text-transform:uppercase;">ชื่อเพจ</label>
+        <input type="text" id="pf_title" style="width:100%;padding:10px 14px;border:2px solid #ece4db;border-radius:12px;font-size:13px;font-family:'Kanit',sans-serif;outline:none;margin-top:4px;">
+        <label style="font-size:11px;font-weight:700;color:#8D6E63;text-transform:uppercase;margin-top:10px;display:block;">Tagline</label>
+        <input type="text" id="pf_tagline" style="width:100%;padding:10px 14px;border:2px solid #ece4db;border-radius:12px;font-size:13px;font-family:'Kanit',sans-serif;outline:none;margin-top:4px;">
+        <label style="font-size:11px;font-weight:700;color:#8D6E63;text-transform:uppercase;margin-top:10px;display:block;">Bio</label>
+        <textarea id="pf_bio" rows="3" style="width:100%;padding:10px 14px;border:2px solid #ece4db;border-radius:12px;font-size:13px;font-family:'Kanit',sans-serif;outline:none;margin-top:4px;resize:vertical;"></textarea>
+      </div>
+
+      <div style="background:#fff;border:1.5px solid #f0e6da;border-radius:14px;padding:16px;margin-bottom:12px;">
+        <label style="font-size:11px;font-weight:700;color:#8D6E63;text-transform:uppercase;">📊 สถิติ</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+          <div><label style="font-size:10px;color:#8D6E63;">สถานที่รีวิว</label><input type="text" id="pf_stat1" style="width:100%;padding:8px;border:2px solid #ece4db;border-radius:10px;font-size:13px;font-family:'Kanit';outline:none;"></div>
+          <div><label style="font-size:10px;color:#8D6E63;">รูปรีวิว</label><input type="text" id="pf_stat2" style="width:100%;padding:8px;border:2px solid #ece4db;border-radius:10px;font-size:13px;font-family:'Kanit';outline:none;"></div>
+          <div><label style="font-size:10px;color:#8D6E63;">คะแนนเฉลี่ย</label><input type="text" id="pf_stat3" style="width:100%;padding:8px;border:2px solid #ece4db;border-radius:10px;font-size:13px;font-family:'Kanit';outline:none;"></div>
+          <div><label style="font-size:10px;color:#8D6E63;">Followers</label><input type="text" id="pf_stat4" style="width:100%;padding:8px;border:2px solid #ece4db;border-radius:10px;font-size:13px;font-family:'Kanit';outline:none;"></div>
+        </div>
+      </div>
+
+      <div style="background:#fff;border:1.5px solid #f0e6da;border-radius:14px;padding:16px;margin-bottom:12px;">
+        <h4 style="font-family:'Quicksand',sans-serif;font-size:14px;font-weight:700;color:#3E2723;margin-bottom:10px;">🌟 TinTin</h4>
+        <label style="font-size:10px;color:#8D6E63;">URL รูปโปรไฟล์</label>
+        <input type="text" id="pf_img1" style="width:100%;padding:8px;border:2px solid #ece4db;border-radius:10px;font-size:12px;font-family:'Kanit';outline:none;margin-top:4px;">
+        <label style="font-size:10px;color:#8D6E63;margin-top:8px;display:block;">ชื่อ</label>
+        <input type="text" id="pf_name1" style="width:100%;padding:8px;border:2px solid #ece4db;border-radius:10px;font-size:13px;font-family:'Kanit';outline:none;margin-top:4px;">
+        <label style="font-size:10px;color:#8D6E63;margin-top:8px;display:block;">สายพันธุ์ / อายุ</label>
+        <input type="text" id="pf_breed1" style="width:100%;padding:8px;border:2px solid #ece4db;border-radius:10px;font-size:13px;font-family:'Kanit';outline:none;margin-top:4px;">
+        <label style="font-size:10px;color:#8D6E63;margin-top:8px;display:block;">นิสัย</label>
+        <textarea id="pf_personality1" rows="2" style="width:100%;padding:8px;border:2px solid #ece4db;border-radius:10px;font-size:12px;font-family:'Kanit';outline:none;margin-top:4px;resize:vertical;"></textarea>
+        <label style="font-size:10px;color:#8D6E63;margin-top:8px;display:block;">สไตล์รีวิว</label>
+        <input type="text" id="pf_style1" style="width:100%;padding:8px;border:2px solid #ece4db;border-radius:10px;font-size:12px;font-family:'Kanit';outline:none;margin-top:4px;">
+      </div>
+
+      <div style="background:#fff;border:1.5px solid #f0e6da;border-radius:14px;padding:16px;margin-bottom:12px;">
+        <h4 style="font-family:'Quicksand',sans-serif;font-size:14px;font-weight:700;color:#3E2723;margin-bottom:10px;">🧐 Luca</h4>
+        <label style="font-size:10px;color:#8D6E63;">URL รูปโปรไฟล์</label>
+        <input type="text" id="pf_img2" style="width:100%;padding:8px;border:2px solid #ece4db;border-radius:10px;font-size:12px;font-family:'Kanit';outline:none;margin-top:4px;">
+        <label style="font-size:10px;color:#8D6E63;margin-top:8px;display:block;">ชื่อ</label>
+        <input type="text" id="pf_name2" style="width:100%;padding:8px;border:2px solid #ece4db;border-radius:10px;font-size:13px;font-family:'Kanit';outline:none;margin-top:4px;">
+        <label style="font-size:10px;color:#8D6E63;margin-top:8px;display:block;">สายพันธุ์ / อายุ</label>
+        <input type="text" id="pf_breed2" style="width:100%;padding:8px;border:2px solid #ece4db;border-radius:10px;font-size:13px;font-family:'Kanit';outline:none;margin-top:4px;">
+        <label style="font-size:10px;color:#8D6E63;margin-top:8px;display:block;">นิสัย</label>
+        <textarea id="pf_personality2" rows="2" style="width:100%;padding:8px;border:2px solid #ece4db;border-radius:10px;font-size:12px;font-family:'Kanit';outline:none;margin-top:4px;resize:vertical;"></textarea>
+        <label style="font-size:10px;color:#8D6E63;margin-top:8px;display:block;">สไตล์รีวิว</label>
+        <input type="text" id="pf_style2" style="width:100%;padding:8px;border:2px solid #ece4db;border-radius:10px;font-size:12px;font-family:'Kanit';outline:none;margin-top:4px;">
+      </div>
+
+      <button onclick="saveProfile()" style="width:100%;background:#F2994A;color:#fff;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Kanit',sans-serif;margin-bottom:16px;">💾 บันทึกโปรไฟล์</button>
+    </div>
+
+    <!-- TAB: Settings -->
+    <div class="admin-tab-pane" id="pane-settings" style="display:none;flex:1;overflow-y:auto;padding:16px;">
+      <h3 style="font-family:'Quicksand',sans-serif;font-size:17px;font-weight:700;color:#3E2723;margin-bottom:14px;">⚙️ ตั้งค่า</h3>
+      
+      <div style="background:#fff;border:1.5px solid #f0e6da;border-radius:14px;padding:16px;margin-bottom:12px;">
+        <label style="font-size:12px;font-weight:700;color:#8D6E63;text-transform:uppercase;">🔑 เปลี่ยน Password</label>
+        <input type="password" id="set_oldpw" placeholder="Password เดิม" style="width:100%;padding:10px 14px;border:2px solid #ece4db;border-radius:12px;font-size:13px;font-family:'Kanit',sans-serif;outline:none;margin-top:8px;">
+        <input type="password" id="set_newpw" placeholder="Password ใหม่" style="width:100%;padding:10px 14px;border:2px solid #ece4db;border-radius:12px;font-size:13px;font-family:'Kanit',sans-serif;outline:none;margin-top:8px;">
+        <input type="password" id="set_confirmpw" placeholder="ยืนยัน Password ใหม่" style="width:100%;padding:10px 14px;border:2px solid #ece4db;border-radius:12px;font-size:13px;font-family:'Kanit',sans-serif;outline:none;margin-top:8px;">
+        <button onclick="changePassword()" style="width:100%;background:#F2994A;color:#fff;border:none;border-radius:12px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Kanit',sans-serif;margin-top:10px;">🔐 เปลี่ยน Password</button>
+        <div id="pwChangeMsg" style="font-size:12px;margin-top:8px;text-align:center;"></div>
+      </div>
+
+      <div style="background:#fff;border:1.5px solid #f0e6da;border-radius:14px;padding:16px;margin-bottom:12px;">
+        <label style="font-size:12px;font-weight:700;color:#8D6E63;text-transform:uppercase;">🚪 ออกจากระบบ</label>
+        <button onclick="doLogout()" style="width:100%;background:#FEE2E2;color:#E53935;border:1.5px solid #FECACA;border-radius:12px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Kanit',sans-serif;margin-top:8px;">ออกจากระบบ</button>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -1580,28 +1665,71 @@ initMap();
 let adminOpen = false;
 let adminLoggedIn = false;
 let editingId = null;
-const ADMIN_PIN = '1234';
+const STORAGE_PW = 'tl_admin_pw';
+const STORAGE_PROFILE = 'tl_profile';
+
+// Password: stored in localStorage, first time user sets it
+function getPassword() { return localStorage.getItem(STORAGE_PW); }
+function setPassword(pw) { localStorage.setItem(STORAGE_PW, pw); }
+
+// Check if first time (no password set)
+function initLoginUI() {
+  const pw = getPassword();
+  if (!pw) {
+    document.getElementById('loginTitle').textContent = '🔐 ตั้ง Password ใหม่';
+    document.getElementById('loginMsg').textContent = 'ครั้งแรก กรุณาตั้ง Password สำหรับ Admin';
+    document.getElementById('pwSetupWrap').style.display = 'block';
+    document.getElementById('btnLogin').textContent = 'ตั้ง Password';
+    document.getElementById('btnLogin').onclick = doSetup;
+    document.getElementById('pwNote').textContent = '⚠️ จำ Password ให้ดี! ถ้าลืมต้อง reset ผ่าน browser';
+  } else {
+    document.getElementById('loginTitle').textContent = 'Admin Access';
+    document.getElementById('loginMsg').textContent = 'ใส่ Password เพื่อจัดการข้อมูล';
+    document.getElementById('pwSetupWrap').style.display = 'none';
+    document.getElementById('btnLogin').textContent = 'เข้าสู่ระบบ';
+    document.getElementById('btnLogin').onclick = doLogin;
+    document.getElementById('pwNote').textContent = '';
+  }
+}
+
+function doSetup() {
+  const pw = document.getElementById('pwInput').value;
+  const confirm = document.getElementById('pwConfirm').value;
+  if (pw.length < 4) { alert('Password ต้องมีอย่างน้อย 4 ตัวอักษร'); return; }
+  if (pw !== confirm) { alert('Password ไม่ตรงกัน'); return; }
+  setPassword(pw);
+  alert('✅ ตั้ง Password สำเร็จ!');
+  adminLoggedIn = true;
+  document.getElementById('adminLogin').style.display = 'none';
+  document.getElementById('adminContent').classList.add('active');
+  renderAdminList();
+  loadProfileToForm();
+}
 
 function toggleAdmin() {
   adminOpen = !adminOpen;
   document.getElementById('adminPanel').classList.toggle('open', adminOpen);
   document.getElementById('adminOverlay').classList.toggle('open', adminOpen);
   document.querySelector('.btn-admin-gear').classList.toggle('active', adminOpen);
-  if (adminOpen && adminLoggedIn) renderAdminList();
+  if (adminOpen) {
+    initLoginUI();
+    if (adminLoggedIn) { renderAdminList(); loadProfileToForm(); }
+  }
 }
 
 function doLogin() {
-  const pin = document.getElementById('pinInput').value;
-  if (pin === ADMIN_PIN) {
+  const pw = document.getElementById('pwInput').value;
+  if (pw === getPassword()) {
     adminLoggedIn = true;
     document.getElementById('adminLogin').style.display = 'none';
     document.getElementById('adminContent').classList.add('active');
     renderAdminList();
+    loadProfileToForm();
   } else {
-    const inp = document.getElementById('pinInput');
-    inp.classList.add('error');
+    const inp = document.getElementById('pwInput');
+    inp.style.borderColor = '#E53935';
     inp.value = '';
-    setTimeout(() => inp.classList.remove('error'), 500);
+    setTimeout(() => inp.style.borderColor = '#FDDCB5', 500);
   }
 }
 
@@ -1609,8 +1737,66 @@ function doLogout() {
   adminLoggedIn = false;
   document.getElementById('adminLogin').style.display = 'flex';
   document.getElementById('adminContent').classList.remove('active');
-  document.getElementById('pinInput').value = '';
+  document.getElementById('pwInput').value = '';
   hideForm();
+  initLoginUI();
+}
+
+// ===== ADMIN TABS =====
+function switchAdminTab(tab) {
+  document.querySelectorAll('.admin-tab-btn').forEach(b => { b.classList.remove('active'); b.style.color = '#8D6E63'; });
+  document.querySelectorAll('.admin-tab-pane').forEach(p => p.style.display = 'none');
+  const btn = document.getElementById('atab-' + tab);
+  if (btn) { btn.classList.add('active'); btn.style.color = '#F2994A'; }
+  const pane = document.getElementById('pane-' + tab);
+  if (pane) pane.style.display = 'flex';
+  if (tab === 'profile') loadProfileToForm();
+}
+
+// ===== PARSE GOOGLE MAPS LINK =====
+function parseMapLink() {
+  const link = document.getElementById('f_maplink').value.trim();
+  const status = document.getElementById('mapLinkStatus');
+  
+  // Try various Google Maps URL patterns
+  let lat, lng;
+  
+  // Pattern: @lat,lng
+  let match = link.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+  if (match) { lat = parseFloat(match[1]); lng = parseFloat(match[2]); }
+  
+  // Pattern: ?q=lat,lng or place/lat,lng
+  if (!lat) {
+    match = link.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (match) { lat = parseFloat(match[1]); lng = parseFloat(match[2]); }
+  }
+  
+  // Pattern: /place/ with coordinates
+  if (!lat) {
+    match = link.match(/place\/(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (match) { lat = parseFloat(match[1]); lng = parseFloat(match[2]); }
+  }
+  
+  // Pattern: ll=lat,lng
+  if (!lat) {
+    match = link.match(/ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (match) { lat = parseFloat(match[1]); lng = parseFloat(match[2]); }
+  }
+
+  if (lat && lng && lat > -90 && lat < 90 && lng > -180 && lng < 180) {
+    document.getElementById('f_lat').value = lat;
+    document.getElementById('f_lng').value = lng;
+    status.innerHTML = '✅ พิกัด: ' + lat.toFixed(4) + ', ' + lng.toFixed(4);
+    status.style.color = '#16A34A';
+  } else if (link.includes('maps.app.goo.gl') || link.includes('goo.gl/maps')) {
+    status.innerHTML = '⏳ Short link — วาง link ยาวจาก Google Maps แทน (กดแชร์ → คัดลอกลิงก์)';
+    status.style.color = '#F59E0B';
+  } else if (link.length > 5) {
+    status.innerHTML = '❌ ไม่พบพิกัด — ลองวาง link ใหม่';
+    status.style.color = '#E53935';
+  } else {
+    status.innerHTML = '';
+  }
 }
 
 // ===== RENDER ADMIN LIST =====
@@ -1657,6 +1843,9 @@ function showForm(id) {
     document.getElementById('f_img').value = p.img;
     document.getElementById('f_lat').value = p.lat;
     document.getElementById('f_lng').value = p.lng;
+    document.getElementById('f_maplink').value = 'https://www.google.com/maps?q=' + p.lat + ',' + p.lng;
+    document.getElementById('mapLinkStatus').innerHTML = '✅ พิกัด: ' + p.lat.toFixed(4) + ', ' + p.lng.toFixed(4);
+    document.getElementById('mapLinkStatus').style.color = '#16A34A';
     document.getElementById('f_area').value = p.area;
     document.getElementById('f_tel').value = p.tel;
     document.getElementById('f_score').value = p.score;
@@ -1668,13 +1857,14 @@ function showForm(id) {
     previewImg();
   } else {
     document.getElementById('formTitle').innerHTML = '➕ เพิ่มสถานที่ใหม่';
-    ['f_name','f_petSize','f_desc','f_img','f_lat','f_lng','f_area','f_tel','f_score','f_comment','f_hours'].forEach(id => document.getElementById(id).value = '');
+    ['f_name','f_petSize','f_desc','f_img','f_lat','f_lng','f_maplink','f_area','f_tel','f_score','f_comment','f_hours'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('f_cat').value = 'cafe';
     document.getElementById('f_reviewer').value = 'TinTin';
     document.getElementById('f_price').value = '฿฿';
     document.getElementById('f_active').value = 'true';
     document.getElementById('imgPreview').style.backgroundImage = '';
     document.getElementById('imgPreview').textContent = '📷 Preview รูปภาพ';
+    document.getElementById('mapLinkStatus').innerHTML = '';
   }
 }
 
@@ -1704,6 +1894,7 @@ function savePlace() {
   const name = document.getElementById('f_name').value.trim();
   if (!name) { alert('กรุณาใส่ชื่อสถานที่'); return; }
 
+  const mapLink = document.getElementById('f_maplink').value.trim();
   const data = {
     name: name,
     cat: document.getElementById('f_cat').value,
@@ -1712,6 +1903,7 @@ function savePlace() {
     img: document.getElementById('f_img').value.trim() || 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&h=300&fit=crop',
     lat: parseFloat(document.getElementById('f_lat').value) || 13.74,
     lng: parseFloat(document.getElementById('f_lng').value) || 100.56,
+    mapLink: mapLink,
     tel: document.getElementById('f_tel').value.trim(),
     petSize: document.getElementById('f_petSize').value.trim() || 'S, M, L',
     score: parseFloat(document.getElementById('f_score').value) || 4.0,
@@ -1730,10 +1922,7 @@ function savePlace() {
 
   if (editingId) {
     const idx = PLACES.findIndex(p => p.id === editingId);
-    if (idx >= 0) {
-      data.id = editingId;
-      PLACES[idx] = data;
-    }
+    if (idx >= 0) { data.id = editingId; PLACES[idx] = data; }
   } else {
     data.id = PLACES.length > 0 ? Math.max(...PLACES.map(p=>p.id)) + 1 : 1;
     PLACES.push(data);
@@ -1757,6 +1946,117 @@ function deletePlace(id) {
   renderCards();
   renderMarkers(getFiltered());
 }
+
+// ===== PROFILE MANAGEMENT =====
+const DEFAULT_PROFILE = {
+  title: 'TinTin & Luca',
+  tagline: '"We sniff it, we rate it, we wag about it!" 🐾',
+  bio: 'สองพี่น้องนักรีวิวตัวจริง ไปลองจริง ดมจริง นอนจริง! ทุกสถานที่ที่แนะนำคือที่ที่เราพาน้องไปแล้วทุกแห่ง Rating ทุกคะแนนมาจากประสบการณ์ตรงของ TinTin กับ Luca เอง',
+  stat1: '12', stat2: '48', stat3: '4.6', stat4: '2K+',
+  img1: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=200&h=200&fit=crop',
+  name1: 'TinTin', breed1: 'Golden Retriever | 3 ขวบ',
+  personality1: 'นิสัยร่าเริง เข้าสังคมเก่ง ชอบทุกคน ชอบทุกที่! ถ้า TinTin แฮปปี้แปลว่าร้านนั้นเปิดใจรับน้องหมาจริงๆ',
+  style1: 'ให้คะแนนเรื่อง "ต้อนรับน้องหมาดีแค่ไหน" พื้นที่วิ่งเล่น และบรรยากาศ',
+  img2: 'https://images.unsplash.com/photo-1583337130417-13571c84e434?w=200&h=200&fit=crop',
+  name2: 'Luca', breed2: 'French Bulldog | 2 ขวบ',
+  personality2: 'จู้จี้นิดนึง เลือกกิน เลือกนอน! ถ้า Luca ให้ผ่านแปลว่าคุณภาพดีจริงๆ ไม่ผ่านง่ายๆ',
+  style2: 'ให้คะแนนเรื่อง "ความสะอาด" อาหาร/เครื่องดื่ม และความปลอดภัย',
+};
+
+function getProfile() {
+  try {
+    const saved = localStorage.getItem(STORAGE_PROFILE);
+    return saved ? { ...DEFAULT_PROFILE, ...JSON.parse(saved) } : { ...DEFAULT_PROFILE };
+  } catch(e) { return { ...DEFAULT_PROFILE }; }
+}
+
+function loadProfileToForm() {
+  const p = getProfile();
+  const fields = ['title','tagline','bio','stat1','stat2','stat3','stat4','img1','name1','breed1','personality1','style1','img2','name2','breed2','personality2','style2'];
+  fields.forEach(f => {
+    const el = document.getElementById('pf_' + f);
+    if (el) el.value = p[f] || '';
+  });
+}
+
+function saveProfile() {
+  const fields = ['title','tagline','bio','stat1','stat2','stat3','stat4','img1','name1','breed1','personality1','style1','img2','name2','breed2','personality2','style2'];
+  const data = {};
+  fields.forEach(f => {
+    const el = document.getElementById('pf_' + f);
+    if (el) data[f] = el.value;
+  });
+  localStorage.setItem(STORAGE_PROFILE, JSON.stringify(data));
+  applyProfile();
+  alert('✅ บันทึกโปรไฟล์สำเร็จ!');
+}
+
+function applyProfile() {
+  const p = getProfile();
+  
+  // Profile hero
+  const heroSection = document.getElementById('sec-profile');
+  if (!heroSection) return;
+  
+  // Update avatars
+  const avatars = heroSection.querySelectorAll('.avatar-circle');
+  if (avatars[0]) { avatars[0].style.backgroundImage = 'url(' + p.img1 + ')'; avatars[0].querySelector('.avatar-name').textContent = p.name1; }
+  if (avatars[1]) { avatars[1].style.backgroundImage = 'url(' + p.img2 + ')'; avatars[1].querySelector('.avatar-name').textContent = p.name2; }
+  
+  // Update text
+  const h2 = heroSection.querySelector('.profile-info h2');
+  if (h2) h2.textContent = p.title;
+  const tagline = heroSection.querySelector('.tagline');
+  if (tagline) tagline.textContent = p.tagline;
+  const bio = heroSection.querySelector('.bio');
+  if (bio) bio.textContent = p.bio;
+  
+  // Stats
+  const statNums = heroSection.querySelectorAll('.stat-box .num');
+  if (statNums[0]) statNums[0].textContent = p.stat1;
+  if (statNums[1]) statNums[1].textContent = p.stat2;
+  if (statNums[2]) statNums[2].textContent = p.stat3;
+  if (statNums[3]) statNums[3].textContent = p.stat4;
+  
+  // Dog cards
+  const cards = heroSection.querySelectorAll('.dog-card');
+  if (cards[0]) {
+    cards[0].querySelector('.dog-avatar').style.backgroundImage = 'url(' + p.img1 + ')';
+    cards[0].querySelector('h3').textContent = p.name1 + ' 🌟';
+    cards[0].querySelector('.breed').textContent = p.breed1;
+    cards[0].querySelector('.personality').textContent = p.personality1;
+    cards[0].querySelector('.review-style').innerHTML = '🎯 สไตล์รีวิว: <strong>' + p.style1 + '</strong>';
+  }
+  if (cards[1]) {
+    cards[1].querySelector('.dog-avatar').style.backgroundImage = 'url(' + p.img2 + ')';
+    cards[1].querySelector('h3').textContent = p.name2 + ' 🧐';
+    cards[1].querySelector('.breed').textContent = p.breed2;
+    cards[1].querySelector('.personality').textContent = p.personality2;
+    cards[1].querySelector('.review-style').innerHTML = '🎯 สไตล์รีวิว: <strong>' + p.style2 + '</strong>';
+  }
+}
+
+// ===== CHANGE PASSWORD =====
+function changePassword() {
+  const oldPw = document.getElementById('set_oldpw').value;
+  const newPw = document.getElementById('set_newpw').value;
+  const confirmPw = document.getElementById('set_confirmpw').value;
+  const msg = document.getElementById('pwChangeMsg');
+  
+  if (oldPw !== getPassword()) { msg.innerHTML = '❌ Password เดิมไม่ถูกต้อง'; msg.style.color = '#E53935'; return; }
+  if (newPw.length < 4) { msg.innerHTML = '❌ Password ใหม่ต้องมีอย่างน้อย 4 ตัวอักษร'; msg.style.color = '#E53935'; return; }
+  if (newPw !== confirmPw) { msg.innerHTML = '❌ Password ใหม่ไม่ตรงกัน'; msg.style.color = '#E53935'; return; }
+  
+  setPassword(newPw);
+  msg.innerHTML = '✅ เปลี่ยน Password สำเร็จ!';
+  msg.style.color = '#16A34A';
+  document.getElementById('set_oldpw').value = '';
+  document.getElementById('set_newpw').value = '';
+  document.getElementById('set_confirmpw').value = '';
+}
+
+// Apply saved profile on load
+applyProfile();
 </script>
 
 </body>
