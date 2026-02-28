@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TinTin & Luca — Pet Friendly Directory</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Kanit:wght@300;400;500;600;700&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream: #FFF8F0;
+  --warm: #FEF0E1;
+  --peach: #FDDCB5;
+  --orange: #F2994A;
+  --orange-dark: #E07C24;
+  --brown: #5D4037;
+  --brown-light: #8D6E63;
+  --brown-dark: #3E2723;
+  --green: #66BB6A;
+  --green-dark: #43A047;
+  --gold: #FFB300;
+  --red-heart: #E53935;
+  --text: #3E2723;
+  --text-light: #8D6E63;
+  --card: #FFFFFF;
+  --shadow: 0 4px 20px rgba(93,64,55,0.1);
+  --shadow-lg: 0 8px 40px rgba(93,64,55,0.15);
+  --radius: 20px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Kanit',sans-serif; background:var(--cream); color:var(--text); overflow-x:hidden; }
+
+/* ===== HEADER ===== */
+.header {
+  background: linear-gradient(135deg, #FFF8F0 0%, #FDDCB5 50%, #F2994A 100%);
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+}
+.header::before {
+  content: '';
+  position: absolute;
+  top: -50%; right: -20%;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(255,179,0,0.15) 0%, transparent 70%);
+  border-radius: 50%;
+}
+.header::after {
+  content: '';
+  position: absolute;
+  bottom: -30%; left: -10%;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(242,153,74,0.12) 0%, transparent 70%);
+  border-radius: 50%;
+}
+.header-inner {
+  position: relative;
+  z-index: 2;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 24px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.logo-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.logo-paws {
+  width: 52px; height: 52px;
+  background: var(--orange);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px;
+  box-shadow: 0 4px 14px rgba(242,153,74,0.4);
+  transform: rotate(-5deg);
+  position: relative;
+}
+.logo-paws::after {
+  content: ''; position: absolute;
+  width: 14px; height: 14px;
+  background: var(--gold);
+  border-radius: 50%;
+  top: -4px; right: -4px;
+  border: 2px solid var(--cream);
+}
+.logo-text h1 {
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--brown-dark);
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+}
+.logo-text h1 span { color: var(--orange); }
+.logo-text p {
+  font-family: 'Caveat', cursive;
+  font-size: 15px;
+  color: var(--brown-light);
+  font-weight: 600;
+}
+.header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.btn-profile {
+  background: var(--card);
+  border: 2px solid var(--peach);
+  border-radius: 14px;
+  padding: 8px 16px;
+  font-family: 'Kanit', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brown);
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex; align-items: center; gap: 6px;
+}
+.btn-profile:hover { background: var(--warm); border-color: var(--orange); }
+
+/* ===== NAV TABS ===== */
+.nav-tabs {
+  display: flex;
+  gap: 0;
+  background: var(--card);
+  border-bottom: 2px solid #f0e6da;
+  position: sticky;
+  top: 0;
+  z-index: 900;
+  box-shadow: 0 2px 10px rgba(93,64,55,0.06);
+}
+.nav-tab {
+  flex: 1;
+  padding: 14px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-light);
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: 'Kanit', sans-serif;
+  transition: all 0.3s;
+  position: relative;
+}
+.nav-tab:hover { color: var(--orange); background: var(--warm); }
+.nav-tab.active { color: var(--orange); }
+.nav-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px; left: 20%; right: 20%;
+  height: 3px;
+  background: var(--orange);
+  border-radius: 3px 3px 0 0;
+}
+
+/* ===== PROFILE SECTION ===== */
+.profile-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 30px 24px;
+  display: none;
+}
+.profile-section.active { display: block; }
+
+.profile-hero {
+  background: linear-gradient(135deg, var(--warm), var(--peach));
+  border-radius: 24px;
+  padding: 36px;
+  display: flex;
+  gap: 32px;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.profile-hero::before {
+  content: '🐾 🐾 🐾';
+  position: absolute;
+  top: 12px; right: 20px;
+  font-size: 28px;
+  opacity: 0.15;
+  letter-spacing: 12px;
+}
+.profile-avatars {
+  display: flex;
+  gap: 0;
+  flex-shrink: 0;
+}
+.avatar-circle {
+  width: 110px; height: 110px;
+  border-radius: 50%;
+  border: 4px solid var(--card);
+  box-shadow: var(--shadow);
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+.avatar-circle:nth-child(2) { margin-left: -30px; }
+.avatar-circle .avatar-name {
+  position: absolute;
+  bottom: -8px;
+  left: 50%; transform: translateX(-50%);
+  background: var(--orange);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 10px;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(242,153,74,0.4);
+}
+.profile-info h2 {
+  font-family: 'Quicksand', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--brown-dark);
+  margin-bottom: 6px;
+}
+.profile-info .tagline {
+  font-family: 'Caveat', cursive;
+  font-size: 20px;
+  color: var(--orange-dark);
+  margin-bottom: 12px;
+}
+.profile-info .bio {
+  font-size: 14px;
+  color: var(--brown);
+  line-height: 1.7;
+  max-width: 500px;
+}
+.profile-stats {
+  display: flex;
+  gap: 16px;
+  margin-top: 16px;
+}
+.stat-box {
+  background: var(--card);
+  border-radius: 14px;
+  padding: 12px 20px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(93,64,55,0.08);
+}
+.stat-box .num {
+  font-family: 'Quicksand', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--orange);
+}
+.stat-box .label { font-size: 11px; color: var(--text-light); font-weight: 500; }
+
+/* Dog cards */
+.dog-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.dog-card {
+  background: var(--card);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  border: 2px solid transparent;
+  transition: all 0.3s;
+}
+.dog-card:hover { border-color: var(--peach); transform: translateY(-2px); }
+.dog-avatar {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+  border: 3px solid var(--peach);
+}
+.dog-info h3 {
+  font-family: 'Quicksand', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--brown-dark);
+  margin-bottom: 2px;
+}
+.dog-info .breed { font-size: 12px; color: var(--orange); font-weight: 600; margin-bottom: 8px; }
+.dog-info .personality { font-size: 13px; color: var(--brown); line-height: 1.6; }
+.dog-info .review-style {
+  margin-top: 10px;
+  background: var(--warm);
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 11px;
+  color: var(--brown);
+  font-weight: 500;
+}
+.dog-info .review-style strong { color: var(--orange-dark); }
+
+/* ===== DIRECTORY SECTION ===== */
+.directory-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  display: none;
+}
+.directory-section.active { display: flex; gap: 16px; height: calc(100vh - 120px); }
+
+/* Left list */
+.dir-left {
+  width: 440px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+.cat-scroll {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px 0 10px;
+  flex-shrink: 0;
+  -webkit-overflow-scrolling: touch;
+}
+.cat-scroll::-webkit-scrollbar { display: none; }
+.cat-chip {
+  flex-shrink: 0;
+  background: var(--card);
+  border: 2px solid #f0e6da;
+  border-radius: 24px;
+  padding: 7px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brown-light);
+  cursor: pointer;
+  transition: all 0.25s;
+  font-family: 'Kanit', sans-serif;
+  white-space: nowrap;
+}
+.cat-chip:hover { border-color: var(--orange); color: var(--orange); }
+.cat-chip.active {
+  background: var(--orange);
+  border-color: var(--orange);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(242,153,74,0.3);
+}
+.dir-count {
+  font-size: 12px;
+  color: var(--text-light);
+  font-weight: 500;
+  padding: 4px 0 10px;
+  flex-shrink: 0;
+}
+.dir-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 4px;
+}
+.dir-list::-webkit-scrollbar { width: 4px; }
+.dir-list::-webkit-scrollbar-thumb { background: var(--peach); border-radius: 4px; }
+
+/* Place Card */
+.p-card {
+  background: var(--card);
+  border-radius: 18px;
+  border: 2px solid #f5ece3;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s;
+  animation: fadeUp 0.4s ease both;
+}
+.p-card:hover { border-color: var(--orange); box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+.p-card.selected { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(242,153,74,0.15), var(--shadow-lg); }
+.p-card-top {
+  height: 140px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+.p-card-top .cat-label {
+  position: absolute;
+  top: 10px; left: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.p-card-top .paw-score-badge {
+  position: absolute;
+  top: 10px; right: 10px;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(8px);
+  color: #FFB300;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 10px;
+  display: flex; align-items: center; gap: 4px;
+}
+/* Review photo strip */
+.p-card-top .review-strip {
+  position: absolute;
+  bottom: 8px; left: 8px; right: 8px;
+  display: flex;
+  gap: 4px;
+}
+.review-thumb {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  background-size: cover;
+  background-position: center;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  flex-shrink: 0;
+}
+.review-thumb-more {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  border: 2px solid #fff;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.p-card-body { padding: 12px 14px 14px; }
+.p-card-name {
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--brown-dark);
+  margin-bottom: 4px;
+}
+.p-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--text-light);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+/* Paw rating inline */
+.paw-rating {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.paw-rating .paw { font-size: 13px; }
+.paw-rating .paw.filled { filter: none; }
+.paw-rating .paw.empty { opacity: 0.2; }
+/* Reviewer tag */
+.reviewer-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--warm);
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--brown);
+}
+.reviewer-tag img {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--peach);
+}
+.p-card-comment {
+  font-family: 'Caveat', cursive;
+  font-size: 15px;
+  color: var(--orange-dark);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+/* ===== RIGHT MAP ===== */
+.dir-right {
+  flex: 1;
+  border-radius: 20px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: var(--shadow);
+  border: 2px solid #f0e6da;
+}
+#map { width: 100%; height: 100%; }
+
+/* Map marker */
+.map-marker {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  border: 3px solid #fff;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+  transition: transform 0.2s;
+}
+.map-marker:hover { transform: scale(1.15); }
+
+/* Detail overlay */
+.detail-overlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  z-index: 800;
+  background: var(--card);
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.12);
+  transform: translateY(100%);
+  transition: transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94);
+  max-height: 65%;
+  overflow-y: auto;
+}
+.detail-overlay.open { transform: translateY(0); }
+.detail-handle { width: 40px; height: 4px; background: var(--peach); border-radius: 4px; margin: 10px auto 0; }
+.detail-img {
+  width: calc(100% - 32px);
+  height: 180px;
+  margin: 10px 16px 0;
+  border-radius: 16px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+.detail-close {
+  position: absolute;
+  top: 10px; right: 10px;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  border: none;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.detail-body { padding: 16px 20px 24px; }
+.detail-cat-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.detail-title {
+  font-family: 'Quicksand', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--brown-dark);
+  margin-bottom: 6px;
+}
+.detail-paw-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.detail-paw-score {
+  font-family: 'Quicksand', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--orange);
+}
+.detail-paw-label {
+  font-size: 11px;
+  color: var(--text-light);
+}
+.detail-desc {
+  font-size: 14px;
+  color: var(--brown);
+  line-height: 1.7;
+  margin-bottom: 14px;
+}
+/* Review section inside detail */
+.detail-review {
+  background: var(--warm);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.detail-review-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.detail-review-header img {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--peach);
+}
+.detail-review-header .name { font-weight: 600; font-size: 13px; color: var(--brown-dark); }
+.detail-review-header .date { font-size: 11px; color: var(--text-light); }
+.detail-review-text {
+  font-family: 'Caveat', cursive;
+  font-size: 18px;
+  color: var(--orange-dark);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+.detail-review-photos {
+  display: flex;
+  gap: 6px;
+}
+.detail-review-photos img {
+  width: 70px; height: 70px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.detail-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.info-item {
+  background: #FAF5EF;
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.info-item .icon { font-size: 18px; }
+.info-item .lbl { font-size: 10px; color: var(--text-light); }
+.info-item .val { font-size: 13px; color: var(--text); font-weight: 600; }
+.detail-actions {
+  display: flex;
+  gap: 8px;
+}
+.btn-act {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Kanit', sans-serif;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.btn-act:hover { transform: translateY(-1px); }
+.btn-act.map { background: #EFF6FF; color: #2563EB; }
+.btn-act.call { background: #FFF7ED; color: #EA580C; }
+.btn-act.nav {
+  background: linear-gradient(135deg, var(--orange), var(--orange-dark));
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(242,153,74,0.3);
+}
+
+/* Map count */
+.map-count {
+  position: absolute;
+  bottom: 16px; left: 16px;
+  z-index: 800;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Leaflet Popup */
+.leaflet-popup-content-wrapper { border-radius: 16px !important; box-shadow: var(--shadow-lg) !important; padding: 0 !important; overflow: hidden; }
+.leaflet-popup-content { margin: 0 !important; min-width: 200px; }
+.leaflet-popup-tip { box-shadow: none !important; }
+.popup-inner { padding: 12px 14px; }
+.popup-inner h3 { font-family:'Quicksand',sans-serif; font-weight:700; font-size:14px; color:var(--brown-dark); margin-bottom:4px; }
+.popup-inner p { font-size:11px; color:var(--text-light); margin-bottom:8px; }
+.popup-inner .popup-paw { color: var(--gold); font-size: 12px; }
+.popup-inner button { width:100%; background:var(--orange); color:#fff; border:none; border-radius:10px; padding:8px; font-size:12px; font-weight:700; cursor:pointer; font-family:'Kanit',sans-serif; }
+
+@keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+.p-card:nth-child(1){animation-delay:0s} .p-card:nth-child(2){animation-delay:0.06s} .p-card:nth-child(3){animation-delay:0.12s}
+.p-card:nth-child(4){animation-delay:0.18s} .p-card:nth-child(5){animation-delay:0.24s}
+
+/* ===== ADMIN GEAR BUTTON ===== */
+.btn-admin-gear {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  border: 2px solid var(--peach);
+  background: var(--card);
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-admin-gear:hover { background: var(--warm); border-color: var(--orange); transform: rotate(90deg); }
+.btn-admin-gear.active { background: var(--orange); border-color: var(--orange); transform: rotate(90deg); }
+
+/* ===== ADMIN OVERLAY ===== */
+.admin-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(62,39,35,0.5);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.admin-overlay.open { opacity: 1; pointer-events: all; }
+
+/* ===== ADMIN PANEL ===== */
+.admin-panel {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: 480px;
+  max-width: 95vw;
+  background: var(--cream);
+  z-index: 10000;
+  transform: translateX(100%);
+  transition: transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -8px 0 40px rgba(0,0,0,0.15);
+}
+.admin-panel.open { transform: translateX(0); }
+
+.admin-header {
+  background: linear-gradient(135deg, var(--brown-dark), var(--brown));
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.admin-header h2 {
+  font-family: 'Quicksand', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  flex: 1;
+}
+.admin-close {
+  width: 34px; height: 34px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s;
+}
+.admin-close:hover { background: rgba(255,255,255,0.25); }
+
+/* Login */
+.admin-login {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 16px;
+}
+.admin-login .lock-icon { font-size: 48px; margin-bottom: 8px; }
+.admin-login h3 { font-family:'Quicksand',sans-serif; font-size:20px; font-weight:700; color:var(--brown-dark); }
+.admin-login p { font-size:13px; color:var(--text-light); text-align:center; }
+.admin-pin-input {
+  width: 200px;
+  padding: 12px 16px;
+  border: 2px solid var(--peach);
+  border-radius: 14px;
+  font-size: 24px;
+  font-family: 'Quicksand', sans-serif;
+  text-align: center;
+  letter-spacing: 8px;
+  font-weight: 700;
+  color: var(--brown-dark);
+  background: var(--card);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.admin-pin-input:focus { border-color: var(--orange); }
+.admin-pin-input.error { border-color: #E53935; animation: shake 0.4s; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+.btn-login {
+  background: var(--orange);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  padding: 12px 32px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Kanit', sans-serif;
+  transition: all 0.2s;
+}
+.btn-login:hover { background: var(--orange-dark); }
+
+/* Admin Content */
+.admin-content {
+  flex: 1;
+  overflow-y: auto;
+  display: none;
+  flex-direction: column;
+}
+.admin-content.active { display: flex; }
+
+/* Admin toolbar */
+.admin-toolbar {
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 2px solid #f0e6da;
+  background: var(--card);
+  flex-shrink: 0;
+}
+.admin-toolbar .place-count {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-light);
+}
+.btn-add-place {
+  background: var(--green);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Kanit', sans-serif;
+  display: flex; align-items: center; gap: 4px;
+  transition: all 0.2s;
+}
+.btn-add-place:hover { background: var(--green-dark); }
+.btn-logout {
+  background: none;
+  border: 1.5px solid #e0d6cc;
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-light);
+  cursor: pointer;
+  font-family: 'Kanit', sans-serif;
+}
+.btn-logout:hover { border-color: #E53935; color: #E53935; }
+
+/* Admin place list */
+.admin-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.admin-item {
+  background: var(--card);
+  border: 1.5px solid #f0e6da;
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.2s;
+}
+.admin-item:hover { border-color: var(--orange); }
+.admin-item-img {
+  width: 56px; height: 56px;
+  border-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+  border: 2px solid #f0e6da;
+}
+.admin-item-info { flex: 1; min-width: 0; }
+.admin-item-info h4 {
+  font-family: 'Quicksand', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--brown-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.admin-item-info .sub { font-size: 11px; color: var(--text-light); display: flex; gap: 8px; }
+.admin-item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.btn-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  border: 1.5px solid #ece4db;
+  background: var(--card);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.btn-icon:hover { background: var(--warm); }
+.btn-icon.delete:hover { background: #FEE2E2; border-color: #E53935; }
+.admin-item .active-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ===== ADMIN FORM ===== */
+.admin-form-wrap {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+}
+.admin-form-wrap.active { display: flex; }
+.admin-form-wrap h3 {
+  font-family: 'Quicksand', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--brown-dark);
+  display: flex; align-items: center; gap: 8px;
+}
+.form-row {
+  display: flex;
+  gap: 10px;
+}
+.form-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.form-group label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--brown-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.form-group input,
+.form-group textarea,
+.form-group select {
+  padding: 10px 14px;
+  border: 2px solid #ece4db;
+  border-radius: 12px;
+  font-size: 13px;
+  font-family: 'Kanit', sans-serif;
+  color: var(--text);
+  background: var(--card);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus { border-color: var(--orange); }
+.form-group textarea { resize: vertical; min-height: 70px; }
+.form-group .img-preview {
+  width: 100%;
+  height: 100px;
+  border-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  background-color: #f0e6da;
+  border: 2px dashed #ddd3c7;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 4px;
+}
+.form-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 2px solid #f0e6da;
+}
+.btn-save {
+  flex: 1;
+  background: var(--orange);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Kanit', sans-serif;
+}
+.btn-save:hover { background: var(--orange-dark); }
+.btn-cancel {
+  flex: 1;
+  background: var(--card);
+  color: var(--text);
+  border: 2px solid #ece4db;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Kanit', sans-serif;
+}
+.btn-cancel:hover { background: #f5ece3; }
+.form-hint { font-size: 10px; color: var(--text-light); font-style: italic; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-inner">
+    <div class="logo-group">
+      <div class="logo-paws">🐾</div>
+      <div class="logo-text">
+        <h1>TinTin <span>&</span> Luca</h1>
+        <p>"Sniffed, Tested & Approved!"</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="btn-profile" onclick="switchTab('profile')">🐕 รู้จักเรา</button>
+      <button class="btn-admin-gear" onclick="toggleAdmin()" title="Admin">⚙️</button>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav-tabs">
+  <button class="nav-tab active" id="tab-directory" onclick="switchTab('directory')">📍 Directory แนะนำ</button>
+  <button class="nav-tab" id="tab-profile" onclick="switchTab('profile')">🐕 TinTin & Luca</button>
+</div>
+
+<!-- ===== PROFILE SECTION ===== -->
+<div class="profile-section" id="sec-profile">
+  <div class="profile-hero">
+    <div class="profile-avatars">
+      <div class="avatar-circle" style="background-image:url(https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=200&h=200&fit=crop)">
+        <span class="avatar-name">TinTin</span>
+      </div>
+      <div class="avatar-circle" style="background-image:url(https://images.unsplash.com/photo-1583337130417-13571c84e434?w=200&h=200&fit=crop)">
+        <span class="avatar-name">Luca</span>
+      </div>
+    </div>
+    <div class="profile-info">
+      <h2>TinTin & Luca</h2>
+      <div class="tagline">"We sniff it, we rate it, we wag about it!" 🐾</div>
+      <div class="bio">สองพี่น้องนักรีวิวตัวจริง ไปลองจริง ดมจริง นอนจริง! ทุกสถานที่ที่แนะนำคือที่ที่เราพาน้องไปแล้วทุกแห่ง Rating ทุกคะแนนมาจากประสบการณ์ตรงของ TinTin กับ Luca เอง</div>
+      <div class="profile-stats">
+        <div class="stat-box"><div class="num">12</div><div class="label">สถานที่รีวิว</div></div>
+        <div class="stat-box"><div class="num">48</div><div class="label">รูปรีวิว</div></div>
+        <div class="stat-box"><div class="num">4.6</div><div class="label">คะแนนเฉลี่ย</div></div>
+        <div class="stat-box"><div class="num">2K+</div><div class="label">Followers</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dog-cards">
+    <div class="dog-card">
+      <div class="dog-avatar" style="background-image:url(https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=200&h=200&fit=crop)"></div>
+      <div class="dog-info">
+        <h3>TinTin 🌟</h3>
+        <div class="breed">Golden Retriever | 3 ขวบ</div>
+        <div class="personality">นิสัยร่าเริง เข้าสังคมเก่ง ชอบทุกคน ชอบทุกที่! ถ้า TinTin แฮปปี้แปลว่าร้านนั้นเปิดใจรับน้องหมาจริงๆ</div>
+        <div class="review-style">🎯 สไตล์รีวิว: <strong>ให้คะแนนเรื่อง "ต้อนรับน้องหมาดีแค่ไหน" พื้นที่วิ่งเล่น และบรรยากาศ</strong></div>
+      </div>
+    </div>
+    <div class="dog-card">
+      <div class="dog-avatar" style="background-image:url(https://images.unsplash.com/photo-1583337130417-13571c84e434?w=200&h=200&fit=crop)"></div>
+      <div class="dog-info">
+        <h3>Luca 🧐</h3>
+        <div class="breed">French Bulldog | 2 ขวบ</div>
+        <div class="personality">จู้จี้นิดนึง เลือกกิน เลือกนอน! ถ้า Luca ให้ผ่านแปลว่าคุณภาพดีจริงๆ ไม่ผ่านง่ายๆ</div>
+        <div class="review-style">🎯 สไตล์รีวิว: <strong>ให้คะแนนเรื่อง "ความสะอาด" อาหาร/เครื่องดื่ม และความปลอดภัย</strong></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DIRECTORY SECTION ===== -->
+<div class="directory-section active" id="sec-directory">
+  <div class="dir-left">
+    <div class="cat-scroll" id="catScroll"></div>
+    <div class="dir-count" id="dirCount"></div>
+    <div class="dir-list" id="dirList"></div>
+  </div>
+  <div class="dir-right">
+    <div id="map"></div>
+    <div class="map-count" id="mapCount">🐾</div>
+
+    <div class="detail-overlay" id="detailOverlay">
+      <div class="detail-handle"></div>
+      <div class="detail-img" id="detailImg">
+        <button class="detail-close" id="detailClose">✕</button>
+      </div>
+      <div class="detail-body">
+        <div class="detail-cat-tag" id="dCatTag"></div>
+        <div class="detail-title" id="dTitle"></div>
+        <div class="detail-paw-row">
+          <div class="detail-paw-score" id="dScore"></div>
+          <div>
+            <div class="paw-rating" id="dPaws"></div>
+            <div class="detail-paw-label">TinTin & Luca Score</div>
+          </div>
+        </div>
+        <div class="detail-desc" id="dDesc"></div>
+        <div class="detail-review" id="dReview"></div>
+        <div class="detail-info-grid">
+          <div class="info-item"><span class="icon">🐕</span><div><div class="lbl">ขนาดสัตว์เลี้ยง</div><div class="val" id="dPet"></div></div></div>
+          <div class="info-item"><span class="icon">📞</span><div><div class="lbl">โทรศัพท์</div><div class="val" id="dTel"></div></div></div>
+          <div class="info-item"><span class="icon">🕐</span><div><div class="lbl">เวลาเปิด</div><div class="val" id="dHours"></div></div></div>
+          <div class="info-item"><span class="icon">💰</span><div><div class="lbl">ราคา</div><div class="val" id="dPrice"></div></div></div>
+        </div>
+        <div class="detail-actions">
+          <button class="btn-act map" id="btnMap">🗺️ เส้นทาง</button>
+          <button class="btn-act call" id="btnCall">📞 โทร</button>
+          <button class="btn-act nav" id="btnNav">🧭 นำทาง</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== DATA =====
+const PLACES = [
+  { id:1, name:"Buddy's Brew Café", cat:"cafe", catLabel:"คาเฟ่", desc:"คาเฟ่ลับย่านอารีย์ที่ TinTin ชอบมาก! มีสนามหญ้าด้านหลังให้วิ่งเล่น กาแฟดี ขนมอร่อย มีเมนูน้องหมาด้วย", img:"https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600&h=300&fit=crop", score:4.8, petSize:"S, M, L", tel:"02-123-4567", area:"อารีย์", lat:13.7780, lng:100.5440, hours:"08:00-20:00", price:"฿฿",
+    reviewer:"TinTin", reviewerImg:"https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=60&h=60&fit=crop", reviewDate:"15 ก.พ. 2026",
+    comment:"หอมกาแฟมากก สนามหญ้านุ่มมาก วิ่งจนเหนื่อยเลย! พี่บาริสต้าใจดีให้ขนมด้วย 🐾",
+    photos:["https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=100&h=100&fit=crop","https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=100&h=100&fit=crop","https://images.unsplash.com/photo-1530281700549-e82e7bf110d6?w=100&h=100&fit=crop"] },
+  { id:2, name:"Woof & Dine", cat:"restaurant", catLabel:"ร้านอาหาร", desc:"ร้านอาหารอิตาเลียนย่านทองหล่อ มีโซน Pet Zone แยกเฉพาะ พื้นที่กว้าง น้ำดื่มฟรีสำหรับน้องหมา", img:"https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&h=300&fit=crop", score:4.5, petSize:"S, M", tel:"02-234-5678", area:"ทองหล่อ", lat:13.7305, lng:100.5785, hours:"11:00-22:00", price:"฿฿฿",
+    reviewer:"Luca", reviewerImg:"https://images.unsplash.com/photo-1583337130417-13571c84e434?w=60&h=60&fit=crop", reviewDate:"10 ก.พ. 2026",
+    comment:"พาสต้าหอมดี แต่ไม่ได้แบ่งให้กิน 😤 โซนน้องหมาสะอาดดี มีแอร์เย็นสบาย ให้ผ่าน!",
+    photos:["https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=100&h=100&fit=crop","https://images.unsplash.com/photo-1559305616-3f99cd43e353?w=100&h=100&fit=crop"] },
+  { id:3, name:"Paws Paradise Resort", cat:"hotel", catLabel:"โรงแรม", desc:"รีสอร์ทริมทะเลหัวหิน สุดยอด Pet Friendly! มีสระว่ายน้ำสุนัข สนามวิ่ง และบริการ Pet Sitter ตลอด 24 ชม.", img:"https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&h=300&fit=crop", score:5.0, petSize:"S, M, L", tel:"032-345-678", area:"หัวหิน", lat:12.5684, lng:99.9577, hours:"Check-in 14:00", price:"฿฿฿฿",
+    reviewer:"TinTin", reviewerImg:"https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=60&h=60&fit=crop", reviewDate:"2 ก.พ. 2026",
+    comment:"ที่นี่สุดยอดดดด!! สระว่ายน้ำเจ๋งมาก หาดทรายนุ่ม วิ่งได้ทั้งวัน ไม่อยากกลับบ้านเลย!! 🏖️🐾",
+    photos:["https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=100&h=100&fit=crop","https://images.unsplash.com/photo-1540555700478-4be289fbec6d?w=100&h=100&fit=crop","https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=100&h=100&fit=crop"] },
+  { id:4, name:"Bark Park BKK", cat:"park", catLabel:"สวน", desc:"สวนสุนัขกลางกรุง แบ่งโซนเล็ก-ใหญ่ มีอุปกรณ์ออกกำลังกาย สระน้ำ และร้านกาแฟในสวน", img:"https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=600&h=300&fit=crop", score:4.3, petSize:"S, M, L", tel:"02-456-7890", area:"บางนา", lat:13.6627, lng:100.6368, hours:"06:00-20:00", price:"฿",
+    reviewer:"Luca", reviewerImg:"https://images.unsplash.com/photo-1583337130417-13571c84e434?w=60&h=60&fit=crop", reviewDate:"20 ม.ค. 2026",
+    comment:"สวนกว้างดี แต่วันเสาร์คนเยอะมาก ต้องไปเช้าๆ สระน้ำโอเค แต่อยากให้สะอาดกว่านี้นิดนึง",
+    photos:["https://images.unsplash.com/photo-1530281700549-e82e7bf110d6?w=100&h=100&fit=crop"] },
+  { id:5, name:"Zen Dog Spa", cat:"spa", catLabel:"สปา", desc:"สปาพรีเมียม Grooming + นวดผ่อนคลายสำหรับน้องหมา พร้อมบริการ Onsen สไตล์ญี่ปุ่น สำหรับเจ้าของ", img:"https://images.unsplash.com/photo-1540555700478-4be289fbec6d?w=600&h=300&fit=crop", score:4.7, petSize:"S, M, L", tel:"02-567-8901", area:"สาทร", lat:13.7215, lng:100.5288, hours:"10:00-19:00", price:"฿฿฿",
+    reviewer:"TinTin", reviewerImg:"https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=60&h=60&fit=crop", reviewDate:"25 ม.ค. 2026",
+    comment:"อาบน้ำเสร็จหอมฟุ้งเลย! พี่ช่างเบามือมาก ไม่กลัวเลย ขนฟูสวยมากก ✨",
+    photos:["https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=100&h=100&fit=crop","https://images.unsplash.com/photo-1583337130417-13571c84e434?w=100&h=100&fit=crop"] },
+  { id:6, name:"Fetch & Feast", cat:"cafe", catLabel:"คาเฟ่", desc:"คาเฟ่หมาสุดฮิปย่านเอกมัย เมนู Specialty Coffee ระดับ Championship พร้อมเมนูเค้กน้องหมา Handmade", img:"https://images.unsplash.com/photo-1559305616-3f99cd43e353?w=600&h=300&fit=crop", score:4.6, petSize:"S, M", tel:"02-678-9012", area:"เอกมัย", lat:13.7224, lng:100.5853, hours:"09:00-21:00", price:"฿฿",
+    reviewer:"Luca", reviewerImg:"https://images.unsplash.com/photo-1583337130417-13571c84e434?w=60&h=60&fit=crop", reviewDate:"8 ก.พ. 2026",
+    comment:"เค้กหมาอร่อยมาก! (ปกติเรื่องมากนะ) ร้านตกแต่งน่ารัก แอร์เย็น ที่นั่งนุ่ม ชอบ 🎂",
+    photos:["https://images.unsplash.com/photo-1559305616-3f99cd43e353?w=100&h=100&fit=crop","https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=100&h=100&fit=crop"] },
+];
+
+const CATS = [
+  { key:"all", label:"ทั้งหมด", icon:"🐾", color:"#F2994A" },
+  { key:"cafe", label:"คาเฟ่", icon:"☕", color:"#D97706" },
+  { key:"restaurant", label:"ร้านอาหาร", icon:"🍽️", color:"#DC2626" },
+  { key:"hotel", label:"โรงแรม", icon:"🏨", color:"#7C3AED" },
+  { key:"park", label:"สวน", icon:"🌳", color:"#16A34A" },
+  { key:"spa", label:"สปา", icon:"💆", color:"#DB2777" },
+];
+const CAT_COLORS = { cafe:"#D97706", restaurant:"#DC2626", hotel:"#7C3AED", park:"#16A34A", spa:"#DB2777" };
+
+let activeCat = "all", selectedPlace = null, map, markers = [];
+
+// ===== TABS =====
+function switchTab(tab) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('sec-profile').classList.toggle('active', tab === 'profile');
+  document.getElementById('sec-directory').classList.toggle('active', tab === 'directory');
+  if (tab === 'directory' && map) setTimeout(() => map.invalidateSize(), 100);
+}
+
+// ===== PAW ICONS =====
+function pawIcons(score, size = 13) {
+  const full = Math.floor(score);
+  const half = score % 1 >= 0.3;
+  let html = '';
+  for (let i = 0; i < 5; i++) {
+    if (i < full) html += '<span class="paw filled" style="font-size:'+size+'px">🐾</span>';
+    else if (i === full && half) html += '<span class="paw filled" style="font-size:'+size+'px;opacity:0.5">🐾</span>';
+    else html += '<span class="paw empty" style="font-size:'+size+'px">🐾</span>';
+  }
+  return html;
+}
+
+// ===== RENDER CATEGORIES =====
+function renderCats() {
+  const el = document.getElementById('catScroll');
+  el.innerHTML = CATS.map(c =>
+    '<button class="cat-chip ' + (activeCat === c.key ? 'active' : '') + '" onclick="setCat(\'' + c.key + '\')">' + c.icon + ' ' + c.label + '</button>'
+  ).join('');
+}
+function setCat(key) {
+  activeCat = key;
+  selectedPlace = null;
+  closeDetail();
+  renderCats();
+  renderCards();
+  renderMarkers(getFiltered());
+}
+
+function getFiltered() { return activeCat === 'all' ? PLACES : PLACES.filter(p => p.cat === activeCat); }
+
+// ===== RENDER CARDS =====
+function renderCards() {
+  const list = document.getElementById('dirList');
+  const filtered = getFiltered();
+  document.getElementById('dirCount').textContent = '🐾 ' + filtered.length + ' สถานที่ที่ TinTin & Luca แนะนำ';
+  list.innerHTML = filtered.map((p, i) =>
+    '<div class="p-card ' + (selectedPlace && selectedPlace.id === p.id ? 'selected' : '') + '" id="card-' + p.id + '" style="animation-delay:' + (i*0.06) + 's" onclick="selectPlace(' + p.id + ')">' +
+      '<div class="p-card-top" style="background-image:url(' + p.img + ')">' +
+        '<span class="cat-label" style="background:' + (CAT_COLORS[p.cat]||'#F2994A') + '">' + p.catLabel + '</span>' +
+        '<span class="paw-score-badge">🐾 ' + p.score.toFixed(1) + '</span>' +
+        '<div class="review-strip">' +
+          p.photos.slice(0, 3).map(ph => '<div class="review-thumb" style="background-image:url(' + ph + ')"></div>').join('') +
+          (p.photos.length > 3 ? '<div class="review-thumb-more">+' + (p.photos.length - 3) + '</div>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="p-card-body">' +
+        '<div class="p-card-name">' + p.name + '</div>' +
+        '<div class="p-card-meta">' +
+          '<span class="paw-rating">' + pawIcons(p.score) + '</span>' +
+          '<span>📍 ' + p.area + '</span>' +
+        '</div>' +
+        '<div class="reviewer-tag">' +
+          '<img src="' + p.reviewerImg + '" alt="' + p.reviewer + '">' +
+          'Reviewed by ' + p.reviewer +
+        '</div>' +
+        '<div class="p-card-comment">"' + (p.comment.length > 60 ? p.comment.substring(0,60) + '...' : p.comment) + '"</div>' +
+      '</div>' +
+    '</div>'
+  ).join('');
+}
+
+// ===== MAP =====
+function initMap() {
+  map = L.map('map', { zoomControl: false }).setView([13.74, 100.56], 11);
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OSM &copy; CARTO', maxZoom: 19
+  }).addTo(map);
+  renderMarkers(PLACES);
+}
+
+function renderMarkers(places) {
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+  places.forEach(p => {
+    const isActive = selectedPlace && selectedPlace.id === p.id;
+    const icon = L.divIcon({
+      className: '',
+      html: '<div class="map-marker" style="background:' + (isActive ? '#E07C24' : (CAT_COLORS[p.cat]||'#F2994A')) + ';transform:scale(' + (isActive?1.2:1) + ')">' +
+        (CATS.find(c=>c.key===p.cat)?.icon||'🐾') + '</div>',
+      iconSize: [40, 40], iconAnchor: [20, 20], popupAnchor: [0, -24]
+    });
+    const m = L.marker([p.lat, p.lng], { icon });
+    m.bindPopup(
+      '<div class="popup-inner"><h3>' + p.name + '</h3>' +
+      '<p class="popup-paw">' + pawIcons(p.score, 11) + ' ' + p.score.toFixed(1) + ' · 📍 ' + p.area + '</p>' +
+      '<button onclick="selectPlace(' + p.id + ')">ดูรีวิวจาก ' + p.reviewer + '</button></div>',
+      { closeButton: false }
+    );
+    m.addTo(map);
+    markers.push(m);
+  });
+  document.getElementById('mapCount').innerHTML = '🐾 ' + places.length + ' สถานที่รีวิวแล้ว';
+  if (places.length > 0) map.fitBounds(L.featureGroup(markers).getBounds().pad(0.15));
+}
+
+// ===== SELECT =====
+function selectPlace(id) {
+  const p = PLACES.find(x => x.id === id);
+  if (!p) return;
+  selectedPlace = p;
+  renderCards();
+  renderMarkers(getFiltered());
+  map.flyTo([p.lat, p.lng], 15, { duration: 0.8 });
+
+  const card = document.getElementById('card-' + id);
+  if (card) card.scrollIntoView({ behavior:'smooth', block:'nearest' });
+
+  // Detail
+  document.getElementById('detailImg').style.backgroundImage = 'url(' + p.img + ')';
+  document.getElementById('dCatTag').textContent = p.catLabel;
+  document.getElementById('dCatTag').style.background = CAT_COLORS[p.cat] || '#F2994A';
+  document.getElementById('dTitle').textContent = p.name;
+  document.getElementById('dScore').textContent = p.score.toFixed(1);
+  document.getElementById('dPaws').innerHTML = pawIcons(p.score, 16);
+  document.getElementById('dDesc').textContent = p.desc;
+  document.getElementById('dPet').textContent = p.petSize;
+  document.getElementById('dTel').textContent = p.tel;
+  document.getElementById('dHours').textContent = p.hours;
+  document.getElementById('dPrice').textContent = p.price;
+
+  // Review section
+  document.getElementById('dReview').innerHTML =
+    '<div class="detail-review-header">' +
+      '<img src="' + p.reviewerImg + '">' +
+      '<div><div class="name">' + p.reviewer + ' says:</div><div class="date">' + p.reviewDate + '</div></div>' +
+    '</div>' +
+    '<div class="detail-review-text">"' + p.comment + '"</div>' +
+    '<div class="detail-review-photos">' +
+      p.photos.map(ph => '<img src="' + ph + '" alt="review">').join('') +
+    '</div>';
+
+  document.getElementById('btnNav').onclick = () => window.open('https://www.google.com/maps/dir/?api=1&destination=' + p.lat + ',' + p.lng, '_blank');
+  document.getElementById('btnCall').onclick = () => window.open('tel:' + p.tel.replace(/-/g,''));
+  document.getElementById('btnMap').onclick = () => window.open('https://www.google.com/maps?q=' + p.lat + ',' + p.lng, '_blank');
+
+  document.getElementById('detailOverlay').classList.add('open');
+}
+
+function closeDetail() { document.getElementById('detailOverlay').classList.remove('open'); }
+document.getElementById('detailClose').onclick = closeDetail;
+
+// ===== INIT =====
+renderCats();
+renderCards();
+initMap();
+</script>
+<!-- ===== ADMIN OVERLAY ===== -->
+<div class="admin-overlay" id="adminOverlay" onclick="toggleAdmin()"></div>
+
+<!-- ===== ADMIN PANEL ===== -->
+<div class="admin-panel" id="adminPanel">
+  <div class="admin-header">
+    <span style="font-size:20px">⚙️</span>
+    <h2>Admin Panel</h2>
+    <button class="admin-close" onclick="toggleAdmin()">✕</button>
+  </div>
+
+  <!-- Login -->
+  <div class="admin-login" id="adminLogin">
+    <div class="lock-icon">🔐</div>
+    <h3>Admin Access</h3>
+    <p>ใส่ PIN เพื่อจัดการข้อมูลสถานที่</p>
+    <input type="password" class="admin-pin-input" id="pinInput" maxlength="4" placeholder="••••" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn-login" onclick="doLogin()">เข้าสู่ระบบ</button>
+    <p style="font-size:11px;color:#bbb;margin-top:8px">Demo PIN: 1234</p>
+  </div>
+
+  <!-- Content (after login) -->
+  <div class="admin-content" id="adminContent">
+    <!-- Toolbar -->
+    <div class="admin-toolbar">
+      <span class="place-count" id="adminCount">🐾 6 สถานที่</span>
+      <button class="btn-add-place" onclick="showForm(null)">➕ เพิ่มสถานที่</button>
+      <button class="btn-logout" onclick="doLogout()">ออกจากระบบ</button>
+    </div>
+
+    <!-- Place List -->
+    <div class="admin-list" id="adminList"></div>
+
+    <!-- Add/Edit Form -->
+    <div class="admin-form-wrap" id="adminForm">
+      <h3 id="formTitle">➕ เพิ่มสถานที่ใหม่</h3>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>ชื่อสถานที่</label>
+          <input type="text" id="f_name" placeholder="เช่น Buddy's Brew Café">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>หมวดหมู่</label>
+          <select id="f_cat">
+            <option value="cafe">☕ คาเฟ่</option>
+            <option value="restaurant">🍽️ ร้านอาหาร</option>
+            <option value="hotel">🏨 โรงแรม</option>
+            <option value="park">🌳 สวน</option>
+            <option value="spa">💆 สปา</option>
+            <option value="hospital">🏥 โรงพยาบาล</option>
+            <option value="activity">🎾 กิจกรรม</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>ขนาดสัตว์เลี้ยง</label>
+          <input type="text" id="f_petSize" placeholder="S, M, L">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>คำอธิบาย</label>
+        <textarea id="f_desc" placeholder="รายละเอียดสถานที่..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>URL รูปภาพ</label>
+        <input type="text" id="f_img" placeholder="https://..." oninput="previewImg()">
+        <div class="img-preview" id="imgPreview">📷 Preview รูปภาพ</div>
+        <span class="form-hint">อัปโหลดรูปที่ Cloudinary / imgbb แล้ววาง URL</span>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Latitude</label>
+          <input type="number" step="any" id="f_lat" placeholder="13.7372">
+        </div>
+        <div class="form-group">
+          <label>Longitude</label>
+          <input type="number" step="any" id="f_lng" placeholder="100.5628">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>พื้นที่</label>
+          <input type="text" id="f_area" placeholder="เช่น อารีย์, ทองหล่อ">
+        </div>
+        <div class="form-group">
+          <label>เบอร์โทร</label>
+          <input type="text" id="f_tel" placeholder="02-123-4567">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>🐾 TinTin & Luca Score (1-5)</label>
+          <input type="number" step="0.1" min="1" max="5" id="f_score" placeholder="4.5">
+        </div>
+        <div class="form-group">
+          <label>Reviewer</label>
+          <select id="f_reviewer">
+            <option value="TinTin">🐕 TinTin</option>
+            <option value="Luca">🐕 Luca</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>เวลาเปิด</label>
+          <input type="text" id="f_hours" placeholder="09:00-21:00">
+        </div>
+        <div class="form-group">
+          <label>ราคา</label>
+          <select id="f_price">
+            <option value="฿">฿ ประหยัด</option>
+            <option value="฿฿" selected>฿฿ ปานกลาง</option>
+            <option value="฿฿฿">฿฿฿ สูง</option>
+            <option value="฿฿฿฿">฿฿฿฿ พรีเมียม</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>💬 คอมเมนต์รีวิว</label>
+        <textarea id="f_comment" placeholder="ความรู้สึกจาก TinTin / Luca..."></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>สถานะ</label>
+          <select id="f_active">
+            <option value="true">✅ เปิดแสดง (Active)</option>
+            <option value="false">⏸️ ซ่อน (Inactive)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn-cancel" onclick="hideForm()">ยกเลิก</button>
+        <button class="btn-save" onclick="savePlace()">💾 บันทึก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== ADMIN STATE =====
+let adminOpen = false;
+let adminLoggedIn = false;
+let editingId = null;
+const ADMIN_PIN = '1234';
+
+function toggleAdmin() {
+  adminOpen = !adminOpen;
+  document.getElementById('adminPanel').classList.toggle('open', adminOpen);
+  document.getElementById('adminOverlay').classList.toggle('open', adminOpen);
+  document.querySelector('.btn-admin-gear').classList.toggle('active', adminOpen);
+  if (adminOpen && adminLoggedIn) renderAdminList();
+}
+
+function doLogin() {
+  const pin = document.getElementById('pinInput').value;
+  if (pin === ADMIN_PIN) {
+    adminLoggedIn = true;
+    document.getElementById('adminLogin').style.display = 'none';
+    document.getElementById('adminContent').classList.add('active');
+    renderAdminList();
+  } else {
+    const inp = document.getElementById('pinInput');
+    inp.classList.add('error');
+    inp.value = '';
+    setTimeout(() => inp.classList.remove('error'), 500);
+  }
+}
+
+function doLogout() {
+  adminLoggedIn = false;
+  document.getElementById('adminLogin').style.display = 'flex';
+  document.getElementById('adminContent').classList.remove('active');
+  document.getElementById('pinInput').value = '';
+  hideForm();
+}
+
+// ===== RENDER ADMIN LIST =====
+function renderAdminList() {
+  const list = document.getElementById('adminList');
+  document.getElementById('adminCount').textContent = '🐾 ' + PLACES.length + ' สถานที่';
+  const catLabels = { cafe:'คาเฟ่', restaurant:'ร้านอาหาร', hotel:'โรงแรม', park:'สวน', spa:'สปา', hospital:'ร.พ.', activity:'กิจกรรม' };
+
+  list.innerHTML = PLACES.map(p =>
+    '<div class="admin-item">' +
+      '<div class="admin-item-img" style="background-image:url(' + p.img + ')"></div>' +
+      '<div class="admin-item-info">' +
+        '<h4>' + p.name + '</h4>' +
+        '<div class="sub">' +
+          '<span>' + (catLabels[p.cat]||p.cat) + '</span>' +
+          '<span>🐾 ' + p.score.toFixed(1) + '</span>' +
+          '<span>📍 ' + p.area + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="active-dot" style="background:' + (p.active !== false ? '#4ade80' : '#f87171') + '" title="' + (p.active !== false ? 'Active':'Inactive') + '"></div>' +
+      '<div class="admin-item-actions">' +
+        '<button class="btn-icon" title="แก้ไข" onclick="showForm(' + p.id + ')">✏️</button>' +
+        '<button class="btn-icon delete" title="ลบ" onclick="deletePlace(' + p.id + ')">🗑️</button>' +
+      '</div>' +
+    '</div>'
+  ).join('');
+}
+
+// ===== SHOW FORM =====
+function showForm(id) {
+  editingId = id;
+  document.getElementById('adminList').style.display = 'none';
+  document.getElementById('adminForm').classList.add('active');
+  document.querySelector('.admin-toolbar').style.display = 'none';
+
+  if (id) {
+    const p = PLACES.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById('formTitle').innerHTML = '✏️ แก้ไข: ' + p.name;
+    document.getElementById('f_name').value = p.name;
+    document.getElementById('f_cat').value = p.cat;
+    document.getElementById('f_petSize').value = p.petSize;
+    document.getElementById('f_desc').value = p.description;
+    document.getElementById('f_img').value = p.img;
+    document.getElementById('f_lat').value = p.lat;
+    document.getElementById('f_lng').value = p.lng;
+    document.getElementById('f_area').value = p.area;
+    document.getElementById('f_tel').value = p.tel;
+    document.getElementById('f_score').value = p.score;
+    document.getElementById('f_reviewer').value = p.reviewer;
+    document.getElementById('f_hours').value = p.hours || '';
+    document.getElementById('f_price').value = p.price || '฿฿';
+    document.getElementById('f_comment').value = p.comment || '';
+    document.getElementById('f_active').value = p.active !== false ? 'true' : 'false';
+    previewImg();
+  } else {
+    document.getElementById('formTitle').innerHTML = '➕ เพิ่มสถานที่ใหม่';
+    ['f_name','f_petSize','f_desc','f_img','f_lat','f_lng','f_area','f_tel','f_score','f_comment','f_hours'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('f_cat').value = 'cafe';
+    document.getElementById('f_reviewer').value = 'TinTin';
+    document.getElementById('f_price').value = '฿฿';
+    document.getElementById('f_active').value = 'true';
+    document.getElementById('imgPreview').style.backgroundImage = '';
+    document.getElementById('imgPreview').textContent = '📷 Preview รูปภาพ';
+  }
+}
+
+function hideForm() {
+  editingId = null;
+  document.getElementById('adminForm').classList.remove('active');
+  document.getElementById('adminList').style.display = 'flex';
+  document.querySelector('.admin-toolbar').style.display = 'flex';
+  renderAdminList();
+}
+
+function previewImg() {
+  const url = document.getElementById('f_img').value;
+  const el = document.getElementById('imgPreview');
+  if (url && url.startsWith('http')) {
+    el.style.backgroundImage = 'url(' + url + ')';
+    el.textContent = '';
+  } else {
+    el.style.backgroundImage = '';
+    el.textContent = '📷 Preview รูปภาพ';
+  }
+}
+
+// ===== SAVE PLACE =====
+function savePlace() {
+  const catLabels = { cafe:'คาเฟ่', restaurant:'ร้านอาหาร', hotel:'โรงแรม', park:'สวน', spa:'สปา', hospital:'โรงพยาบาล', activity:'กิจกรรม' };
+  const name = document.getElementById('f_name').value.trim();
+  if (!name) { alert('กรุณาใส่ชื่อสถานที่'); return; }
+
+  const data = {
+    name: name,
+    cat: document.getElementById('f_cat').value,
+    catLabel: catLabels[document.getElementById('f_cat').value] || '',
+    description: document.getElementById('f_desc').value.trim(),
+    img: document.getElementById('f_img').value.trim() || 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&h=300&fit=crop',
+    lat: parseFloat(document.getElementById('f_lat').value) || 13.74,
+    lng: parseFloat(document.getElementById('f_lng').value) || 100.56,
+    tel: document.getElementById('f_tel').value.trim(),
+    petSize: document.getElementById('f_petSize').value.trim() || 'S, M, L',
+    score: parseFloat(document.getElementById('f_score').value) || 4.0,
+    area: document.getElementById('f_area').value.trim(),
+    hours: document.getElementById('f_hours').value.trim(),
+    price: document.getElementById('f_price').value,
+    reviewer: document.getElementById('f_reviewer').value,
+    reviewerImg: document.getElementById('f_reviewer').value === 'TinTin'
+      ? 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=60&h=60&fit=crop'
+      : 'https://images.unsplash.com/photo-1583337130417-13571c84e434?w=60&h=60&fit=crop',
+    reviewDate: new Date().toLocaleDateString('th-TH', { day:'numeric', month:'short', year:'numeric' }),
+    comment: document.getElementById('f_comment').value.trim(),
+    photos: [document.getElementById('f_img').value.trim() || 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=100&h=100&fit=crop'],
+    active: document.getElementById('f_active').value === 'true',
+  };
+
+  if (editingId) {
+    const idx = PLACES.findIndex(p => p.id === editingId);
+    if (idx >= 0) {
+      data.id = editingId;
+      PLACES[idx] = data;
+    }
+  } else {
+    data.id = PLACES.length > 0 ? Math.max(...PLACES.map(p=>p.id)) + 1 : 1;
+    PLACES.push(data);
+  }
+
+  hideForm();
+  renderCats();
+  renderCards();
+  renderMarkers(getFiltered());
+}
+
+// ===== DELETE PLACE =====
+function deletePlace(id) {
+  const p = PLACES.find(x => x.id === id);
+  if (!p) return;
+  if (!confirm('ลบ "' + p.name + '" จริงหรือไม่?')) return;
+  const idx = PLACES.findIndex(x => x.id === id);
+  if (idx >= 0) PLACES.splice(idx, 1);
+  renderAdminList();
+  renderCats();
+  renderCards();
+  renderMarkers(getFiltered());
+}
+</script>
+
+</body>
+</html>
