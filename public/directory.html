@@ -614,6 +614,7 @@ body { font-family:'Kanit',sans-serif; background:var(--cream); color:var(--text
 .detail-review-photos {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 .detail-review-photos img {
   width: 70px; height: 70px;
@@ -621,7 +622,21 @@ body { font-family:'Kanit',sans-serif; background:var(--cream); color:var(--text
   object-fit: cover;
   border: 2px solid #fff;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  cursor: pointer;
+  transition: transform 0.2s;
 }
+.detail-review-photos img:hover { transform: scale(1.08); }
+/* Lightbox */
+.lightbox { position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:rgba(0,0,0,0.92);display:none;align-items:center;justify-content:center;flex-direction:column;padding:20px; }
+.lightbox.open { display:flex; }
+.lightbox-img { max-width:90vw;max-height:75vh;border-radius:12px;object-fit:contain;box-shadow:0 8px 40px rgba(0,0,0,0.5); }
+.lightbox-close { position:absolute;top:16px;right:16px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.2);color:#fff;border:none;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center; }
+.lightbox-close:hover { background:rgba(255,255,255,0.35); }
+.lightbox-nav { position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.2);color:#fff;border:none;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center; }
+.lightbox-nav:hover { background:rgba(255,255,255,0.35); }
+.lightbox-prev { left:12px; }
+.lightbox-next { right:12px; }
+.lightbox-counter { color:rgba(255,255,255,0.7);font-size:13px;margin-top:12px;font-family:'Kanit',sans-serif; }
 .detail-info-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1072,9 +1087,18 @@ body { font-family:'Kanit',sans-serif; background:var(--cream); color:var(--text
   .review-thumb { width: 30px; height: 30px; border-radius: 8px; }
   .review-thumb-more { width: 30px; height: 30px; border-radius: 8px; font-size: 9px; }
 
-  /* Detail overlay - full screen on mobile */
-  .detail-overlay { max-height: 80%; border-radius: 20px 20px 0 0; }
-  .detail-img { height: 150px; margin: 8px 12px 0; border-radius: 14px; }
+  /* Detail overlay - FIXED full screen on mobile */
+  .detail-overlay {
+    position: fixed !important;
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    max-height: 85vh;
+    border-radius: 20px 20px 0 0;
+    z-index: 950 !important;
+  }
+  .detail-img { height: 180px; margin: 8px 12px 0; border-radius: 14px; }
   .detail-body { padding: 12px 14px 20px; }
   .detail-title { font-size: 20px; }
   .detail-paw-score { font-size: 26px; }
@@ -1404,7 +1428,21 @@ function selectPlace(id) {
   
   renderCards();
   renderMarkers(getFiltered());
-  map.flyTo([p.lat, p.lng], 15, { duration: 0.8 });
+  
+  // On mobile, scroll map into view first, then fly
+  const isMobile = window.innerWidth <= 768;
+  if (isMobile) {
+    const mapEl = document.getElementById('map');
+    if (mapEl) {
+      mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    setTimeout(() => {
+      map.invalidateSize();
+      map.flyTo([p.lat, p.lng], 15, { duration: 0.8 });
+    }, 400);
+  } else {
+    map.flyTo([p.lat, p.lng], 15, { duration: 0.8 });
+  }
 
   const card = document.getElementById('card-' + id);
   if (card) card.scrollIntoView({ behavior:'smooth', block:'nearest' });
@@ -1430,7 +1468,7 @@ function selectPlace(id) {
     '</div>' +
     '<div class="detail-review-text">"' + p.comment + '"</div>' +
     '<div class="detail-review-photos">' +
-      p.photos.map(ph => '<img src="' + ph + '" alt="review">').join('') +
+      p.photos.map((ph, i) => '<img src="' + ph + '" alt="review" onclick="openLightbox(' + p.id + ',' + i + ')">').join('') +
     '</div>';
 
   document.getElementById('btnNav').onclick = () => window.open('https://www.google.com/maps/dir/?api=1&destination=' + p.lat + ',' + p.lng, '_blank');
@@ -1438,9 +1476,26 @@ function selectPlace(id) {
   document.getElementById('btnMap').onclick = () => window.open('https://www.google.com/maps?q=' + p.lat + ',' + p.lng, '_blank');
 
   document.getElementById('detailOverlay').classList.add('open');
+  
+  // Mobile backdrop
+  if (window.innerWidth <= 768) {
+    let backdrop = document.getElementById('detailBackdrop');
+    if (!backdrop) {
+      backdrop = document.createElement('div');
+      backdrop.id = 'detailBackdrop';
+      backdrop.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:940;';
+      backdrop.onclick = closeDetail;
+      document.body.appendChild(backdrop);
+    }
+    backdrop.style.display = 'block';
+  }
 }
 
-function closeDetail() { document.getElementById('detailOverlay').classList.remove('open'); }
+function closeDetail() {
+  document.getElementById('detailOverlay').classList.remove('open');
+  const backdrop = document.getElementById('detailBackdrop');
+  if (backdrop) backdrop.style.display = 'none';
+}
 document.getElementById('detailClose').onclick = closeDetail;
 
 // ===== INIT =====
@@ -1620,21 +1675,21 @@ initMap();
     </div><!-- end pane-places -->
 
     <!-- TAB: Dashboard -->
-    <div class="admin-tab-pane" id="pane-dashboard" style="display:none;flex:1;overflow-y:auto;padding:16px;">
+    <div class="admin-tab-pane" id="pane-dashboard" style="display:none;overflow-y:auto;padding:16px;">
       <h3 style="font-family:'Quicksand',sans-serif;font-size:17px;font-weight:700;color:#3E2723;margin-bottom:14px;">📊 สถิติ Views</h3>
       
       <!-- Summary Cards -->
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
-        <div style="background:linear-gradient(135deg,#F2994A,#E07C24);border-radius:14px;padding:14px;text-align:center;color:#fff;">
-          <div id="dashTotal" style="font-family:'Quicksand',sans-serif;font-size:28px;font-weight:700;">0</div>
+        <div style="background:linear-gradient(135deg,#F2994A,#E07C24);border-radius:14px;padding:14px 8px;text-align:center;color:#fff;">
+          <div id="dashTotal" style="font-family:'Quicksand',sans-serif;font-size:24px;font-weight:700;">0</div>
           <div style="font-size:10px;opacity:0.9;">Views ทั้งหมด</div>
         </div>
-        <div style="background:linear-gradient(135deg,#66BB6A,#43A047);border-radius:14px;padding:14px;text-align:center;color:#fff;">
-          <div id="dashToday" style="font-family:'Quicksand',sans-serif;font-size:28px;font-weight:700;">0</div>
+        <div style="background:linear-gradient(135deg,#66BB6A,#43A047);border-radius:14px;padding:14px 8px;text-align:center;color:#fff;">
+          <div id="dashToday" style="font-family:'Quicksand',sans-serif;font-size:24px;font-weight:700;">0</div>
           <div style="font-size:10px;opacity:0.9;">Views วันนี้</div>
         </div>
-        <div style="background:linear-gradient(135deg,#7C3AED,#6D28D9);border-radius:14px;padding:14px;text-align:center;color:#fff;">
-          <div id="dashPlaces" style="font-family:'Quicksand',sans-serif;font-size:28px;font-weight:700;">0</div>
+        <div style="background:linear-gradient(135deg,#7C3AED,#6D28D9);border-radius:14px;padding:14px 8px;text-align:center;color:#fff;">
+          <div id="dashPlaces" style="font-family:'Quicksand',sans-serif;font-size:24px;font-weight:700;">0</div>
           <div style="font-size:10px;opacity:0.9;">สถานที่ทั้งหมด</div>
         </div>
       </div>
@@ -1642,7 +1697,7 @@ initMap();
       <!-- View Ranking -->
       <div style="background:#fff;border:1.5px solid #f0e6da;border-radius:14px;padding:16px;margin-bottom:12px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <label style="font-size:12px;font-weight:700;color:#8D6E63;text-transform:uppercase;">🏆 อันดับ Views สูงสุด</label>
+          <label style="font-size:12px;font-weight:700;color:#8D6E63;text-transform:uppercase;">🏆 อันดับ Views แต่ละร้าน</label>
           <button onclick="resetViews()" style="font-size:10px;color:#E53935;background:none;border:1px solid #FECACA;border-radius:8px;padding:4px 10px;cursor:pointer;font-family:'Kanit';">รีเซ็ต</button>
         </div>
         <div id="dashRanking"></div>
@@ -1656,7 +1711,7 @@ initMap();
     </div>
 
     <!-- TAB: Profile -->
-    <div class="admin-tab-pane" id="pane-profile" style="display:none;flex:1;overflow-y:auto;padding:16px;">
+    <div class="admin-tab-pane" id="pane-profile" style="display:none;overflow-y:auto;padding:16px;">
       <h3 style="font-family:'Quicksand',sans-serif;font-size:17px;font-weight:700;color:#3E2723;margin-bottom:14px;">🐕 แก้ไขโปรไฟล์</h3>
       
       <div style="background:#fff;border:1.5px solid #f0e6da;border-radius:14px;padding:16px;margin-bottom:12px;">
@@ -1710,7 +1765,7 @@ initMap();
     </div>
 
     <!-- TAB: Settings -->
-    <div class="admin-tab-pane" id="pane-settings" style="display:none;flex:1;overflow-y:auto;padding:16px;">
+    <div class="admin-tab-pane" id="pane-settings" style="display:none;overflow-y:auto;padding:16px;">
       <h3 style="font-family:'Quicksand',sans-serif;font-size:17px;font-weight:700;color:#3E2723;margin-bottom:14px;">⚙️ ตั้งค่า</h3>
       
       <div style="background:#fff;border:1.5px solid #f0e6da;border-radius:14px;padding:16px;margin-bottom:12px;">
@@ -1820,7 +1875,14 @@ function switchAdminTab(tab) {
   const btn = document.getElementById('atab-' + tab);
   if (btn) { btn.classList.add('active'); btn.style.color = '#F2994A'; }
   const pane = document.getElementById('pane-' + tab);
-  if (pane) pane.style.display = 'flex';
+  if (pane) {
+    // Places uses flex for toolbar+list layout, others use block for vertical stacking
+    if (tab === 'places') {
+      pane.style.display = 'flex';
+    } else {
+      pane.style.display = 'block';
+    }
+  }
   if (tab === 'profile') loadProfileToForm();
   if (tab === 'dashboard') renderDashboard();
 }
@@ -2284,9 +2346,65 @@ function changePassword() {
   document.getElementById('set_confirmpw').value = '';
 }
 
+// ===== LIGHTBOX =====
+let lightboxPhotos = [];
+let lightboxIndex = 0;
+
+function openLightbox(placeId, index) {
+  const p = PLACES.find(x => x.id === placeId);
+  if (!p || !p.photos || p.photos.length === 0) return;
+  lightboxPhotos = p.photos;
+  lightboxIndex = index || 0;
+  showLightboxImage();
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function showLightboxImage() {
+  document.getElementById('lightboxImg').src = lightboxPhotos[lightboxIndex];
+  document.getElementById('lightboxCounter').textContent = (lightboxIndex + 1) + ' / ' + lightboxPhotos.length;
+  // Hide nav if only 1 photo
+  document.querySelector('.lightbox-prev').style.display = lightboxPhotos.length > 1 ? 'flex' : 'none';
+  document.querySelector('.lightbox-next').style.display = lightboxPhotos.length > 1 ? 'flex' : 'none';
+}
+
+function navLightbox(dir, e) {
+  if (e) { e.stopPropagation(); }
+  lightboxIndex = (lightboxIndex + dir + lightboxPhotos.length) % lightboxPhotos.length;
+  showLightboxImage();
+}
+
+function closeLightbox(e) {
+  if (e && e.target !== e.currentTarget && !e.target.classList.contains('lightbox-close')) return;
+  document.getElementById('lightbox').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// Swipe support for mobile
+(function() {
+  let startX = 0;
+  const lb = document.getElementById('lightbox');
+  lb.addEventListener('touchstart', function(e) { startX = e.touches[0].clientX; }, { passive: true });
+  lb.addEventListener('touchend', function(e) {
+    const diff = e.changedTouches[0].clientX - startX;
+    if (Math.abs(diff) > 50) {
+      navLightbox(diff > 0 ? -1 : 1);
+    }
+  }, { passive: true });
+})();
+
 // Apply saved profile on load
 applyProfile();
 </script>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <button class="lightbox-nav lightbox-prev" onclick="navLightbox(-1, event)">‹</button>
+  <img class="lightbox-img" id="lightboxImg" src="" alt="photo">
+  <button class="lightbox-nav lightbox-next" onclick="navLightbox(1, event)">›</button>
+  <div class="lightbox-counter" id="lightboxCounter"></div>
+</div>
 
 </body>
 </html>
