@@ -2116,7 +2116,22 @@ function renderAdminList() {
 
 // ===== SHOW FORM =====
 // ===== PHOTO UPLOAD STATE =====
-let formPhotos = []; // array of URLs (or base64)
+let formPhotos = []; // array of URLs
+const IMGBB_KEY = '99d0a90255572644d7fa81b1f90f1dfc';
+
+async function uploadToImgBB(base64) {
+  const cleanBase64 = base64.includes(',') ? base64.split(',')[1] : base64;
+  const formData = new FormData();
+  formData.append('key', IMGBB_KEY);
+  formData.append('image', cleanBase64);
+  try {
+    const res = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.success) return data.data.url;
+    console.error('imgBB error:', data);
+    return null;
+  } catch(e) { console.error('imgBB upload failed:', e); return null; }
+}
 
 function renderPhotoGrid() {
   const grid = document.getElementById('photoGrid');
@@ -2150,14 +2165,16 @@ function handlePhotoUpload(e) {
   const remaining = 8 - formPhotos.length;
   if (remaining <= 0) { alert('รูปภาพเต็มแล้ว (สูงสุด 8 รูป)'); return; }
   
+  const btn = e.target.parentElement;
+  const origText = btn.textContent;
+  
   files.slice(0, remaining).forEach(file => {
     const reader = new FileReader();
     reader.onload = function(ev) {
-      // Compress image using canvas
       const img = new Image();
-      img.onload = function() {
+      img.onload = async function() {
         const canvas = document.createElement('canvas');
-        const MAX = 800; // max dimension
+        const MAX = 800;
         let w = img.width, h = img.height;
         if (w > MAX || h > MAX) {
           if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
@@ -2167,16 +2184,24 @@ function handlePhotoUpload(e) {
         canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
         const compressed = canvas.toDataURL('image/jpeg', 0.7);
-        if (formPhotos.length < 8) {
-          formPhotos.push(compressed);
+        
+        // Upload to imgBB
+        btn.innerHTML = '⏳ อัปโหลด...';
+        const url = await uploadToImgBB(compressed);
+        btn.innerHTML = origText;
+        
+        if (url && formPhotos.length < 8) {
+          formPhotos.push(url);
           renderPhotoGrid();
+        } else if (!url) {
+          alert('อัปโหลดรูปไม่สำเร็จ กรุณาลองใหม่');
         }
       };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
   });
-  e.target.value = ''; // reset
+  e.target.value = '';
 }
 
 // ===== SHOW FORM =====
@@ -2479,10 +2504,13 @@ function loadProfileToForm() {
 function handleProfileUpload(num, e) {
   const file = e.target.files[0];
   if (!file) return;
+  const preview = document.getElementById('pfPreview' + num);
+  preview.style.backgroundImage = '';
+  preview.innerHTML = '<span style="font-size:10px;color:#999;">⏳</span>';
   const reader = new FileReader();
   reader.onload = function(ev) {
     const img = new Image();
-    img.onload = function() {
+    img.onload = async function() {
       const canvas = document.createElement('canvas');
       const MAX = 400;
       let w = img.width, h = img.height;
@@ -2493,8 +2521,14 @@ function handleProfileUpload(num, e) {
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
       const compressed = canvas.toDataURL('image/jpeg', 0.8);
-      document.getElementById('pf_img' + num).value = compressed;
-      document.getElementById('pfPreview' + num).style.backgroundImage = 'url(' + compressed + ')';
+      const url = await uploadToImgBB(compressed);
+      preview.innerHTML = '';
+      if (url) {
+        document.getElementById('pf_img' + num).value = url;
+        preview.style.backgroundImage = 'url(' + url + ')';
+      } else {
+        alert('อัปโหลดรูปไม่สำเร็จ กรุณาลองใหม่');
+      }
     };
     img.src = ev.target.result;
   };
