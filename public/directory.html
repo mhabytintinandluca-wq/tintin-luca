@@ -626,17 +626,17 @@ body { font-family:'Kanit',sans-serif; background:var(--cream); color:var(--text
   transition: transform 0.2s;
 }
 .detail-review-photos img:hover { transform: scale(1.08); }
-/* Lightbox */
-.lightbox { position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:rgba(0,0,0,0.92);display:none;align-items:center;justify-content:center;flex-direction:column;padding:20px; }
+/* Lightbox - Fullscreen */
+.lightbox { position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:rgba(0,0,0,0.95);display:none;align-items:center;justify-content:center;flex-direction:column;padding:0; }
 .lightbox.open { display:flex; }
-.lightbox-img { max-width:90vw;max-height:75vh;border-radius:12px;object-fit:contain;box-shadow:0 8px 40px rgba(0,0,0,0.5); }
-.lightbox-close { position:absolute;top:16px;right:16px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.2);color:#fff;border:none;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center; }
-.lightbox-close:hover { background:rgba(255,255,255,0.35); }
-.lightbox-nav { position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.2);color:#fff;border:none;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center; }
-.lightbox-nav:hover { background:rgba(255,255,255,0.35); }
-.lightbox-prev { left:12px; }
-.lightbox-next { right:12px; }
-.lightbox-counter { color:rgba(255,255,255,0.7);font-size:13px;margin-top:12px;font-family:'Kanit',sans-serif; }
+.lightbox-img { max-width:100vw;max-height:85vh;width:auto;height:auto;object-fit:contain; }
+.lightbox-close { position:absolute;top:12px;right:12px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.15);color:#fff;border:none;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10; }
+.lightbox-close:hover { background:rgba(255,255,255,0.3); }
+.lightbox-nav { position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.15);color:#fff;border:none;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10; }
+.lightbox-nav:hover { background:rgba(255,255,255,0.3); }
+.lightbox-prev { left:8px; }
+.lightbox-next { right:8px; }
+.lightbox-counter { color:rgba(255,255,255,0.8);font-size:14px;margin-top:12px;font-family:'Kanit',sans-serif;position:absolute;bottom:20px; }
 .detail-info-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1478,16 +1478,54 @@ function selectPlace(id) {
   document.getElementById('dHours').textContent = p.hours;
   document.getElementById('dPrice').textContent = p.price;
 
-  // Review section
-  document.getElementById('dReview').innerHTML =
-    '<div class="detail-review-header">' +
-      '<img src="' + p.reviewerImg + '">' +
-      '<div><div class="name">' + p.reviewer + ' says:</div><div class="date">' + p.reviewDate + '</div></div>' +
-    '</div>' +
-    '<div class="detail-review-text">"' + p.comment + '"</div>' +
-    '<div class="detail-review-photos">' +
-      p.photos.map((ph, i) => '<img src="' + ph + '" alt="review" onclick="openLightbox(' + p.id + ',' + i + ')">').join('') +
+  // Dual Review section
+  const profile = getProfile();
+  let reviewHTML = '';
+  
+  // Sub-score bar helper
+  function subBar(label, val) {
+    if (!val) return '';
+    const pct = Math.round(val / 5 * 100);
+    return '<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">' +
+      '<span style="font-size:10px;color:#8D6E63;width:80px;flex-shrink:0;">' + label + '</span>' +
+      '<div style="flex:1;background:#f0e6da;border-radius:4px;height:6px;overflow:hidden;"><div style="width:' + pct + '%;height:100%;border-radius:4px;background:linear-gradient(90deg,#F2994A,#FFB300);"></div></div>' +
+      '<span style="font-size:11px;font-weight:700;color:#E07C24;width:24px;text-align:right;">' + val.toFixed(1) + '</span></div>';
+  }
+
+  // TinTin review
+  if (p.tinScore || p.tinComment) {
+    reviewHTML += '<div style="background:#FFF8F0;border:1.5px solid #FDDCB5;border-radius:14px;padding:14px;margin-bottom:10px;">' +
+      '<div class="detail-review-header"><img src="' + profile.img1 + '"><div><div class="name">🌟 ' + profile.name1 + ' says:</div><div class="date">' + (p.reviewDate||'') + '</div></div>' +
+      (p.tinScore ? '<span style="font-family:Quicksand,sans-serif;font-size:20px;font-weight:700;color:#E07C24;margin-left:auto;">' + p.tinScore.toFixed(1) + '</span>' : '') +
+      '</div>' +
+      subBar('🐕 ต้อนรับ', p.tinSub1) + subBar('🏃 พื้นที่เล่น', p.tinSub2) + subBar('🌿 บรรยากาศ', p.tinSub3) +
+      (p.tinComment ? '<div class="detail-review-text" style="margin-top:8px;">"' + p.tinComment + '"</div>' : '') +
     '</div>';
+  }
+
+  // Luca review
+  if (p.lucaScore || p.lucaComment) {
+    reviewHTML += '<div style="background:#F5F0FF;border:1.5px solid #D8C8F5;border-radius:14px;padding:14px;margin-bottom:10px;">' +
+      '<div class="detail-review-header"><img src="' + profile.img2 + '"><div><div class="name">🧐 ' + profile.name2 + ' says:</div><div class="date">' + (p.reviewDate||'') + '</div></div>' +
+      (p.lucaScore ? '<span style="font-family:Quicksand,sans-serif;font-size:20px;font-weight:700;color:#7C3AED;margin-left:auto;">' + p.lucaScore.toFixed(1) + '</span>' : '') +
+      '</div>' +
+      subBar('✨ ความสะอาด', p.lucaSub1) + subBar('🍽️ อาหาร', p.lucaSub2) + subBar('🛡️ ปลอดภัย', p.lucaSub3) +
+      (p.lucaComment ? '<div class="detail-review-text" style="margin-top:8px;">"' + p.lucaComment + '"</div>' : '') +
+    '</div>';
+  }
+
+  // Fallback for old data
+  if (!reviewHTML && p.comment) {
+    reviewHTML = '<div class="detail-review-header"><img src="' + p.reviewerImg + '"><div><div class="name">' + p.reviewer + ' says:</div><div class="date">' + p.reviewDate + '</div></div></div>' +
+      '<div class="detail-review-text">"' + p.comment + '"</div>';
+  }
+
+  // Photos
+  reviewHTML += '<div class="detail-review-photos" style="margin-top:10px;">' +
+    p.photos.map((ph, i) => '<img src="' + ph + '" alt="review" onclick="openLightbox(' + p.id + ',' + i + ')">').join('') +
+  '</div>';
+
+  document.getElementById('dReview').innerHTML = reviewHTML;
 
   document.getElementById('btnNav').onclick = () => window.open('https://www.google.com/maps/dir/?api=1&destination=' + p.lat + ',' + p.lng, '_blank');
   document.getElementById('btnCall').onclick = () => window.open('tel:' + p.tel.replace(/-/g,''));
@@ -1640,27 +1678,73 @@ initMap();
         </div>
       </div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label>🐾 TinTin & Luca Score (1-5)</label>
-          <input type="number" step="0.1" min="1" max="5" id="f_score" placeholder="4.5">
+      <!-- TinTin Review -->
+      <div style="background:#FFF8F0;border:2px solid #FDDCB5;border-radius:14px;padding:14px;margin-bottom:10px;">
+        <h4 style="font-family:'Quicksand',sans-serif;font-size:14px;font-weight:700;color:#E07C24;margin-bottom:10px;">🌟 รีวิวจาก TinTin</h4>
+        <div class="form-row">
+          <div class="form-group">
+            <label>⭐ TinTin Score (1-5)</label>
+            <input type="number" step="0.1" min="1" max="5" id="f_tinScore" placeholder="4.5">
+          </div>
+        </div>
+        <label style="font-size:11px;font-weight:600;color:#8D6E63;margin-bottom:4px;display:block;">Sub-scores (1-5)</label>
+        <div class="form-row">
+          <div class="form-group">
+            <label>🐕 ต้อนรับน้องหมา</label>
+            <input type="number" step="0.1" min="1" max="5" id="f_tinSub1" placeholder="4.5">
+          </div>
+          <div class="form-group">
+            <label>🏃 พื้นที่เล่น</label>
+            <input type="number" step="0.1" min="1" max="5" id="f_tinSub2" placeholder="4.0">
+          </div>
+          <div class="form-group">
+            <label>🌿 บรรยากาศ</label>
+            <input type="number" step="0.1" min="1" max="5" id="f_tinSub3" placeholder="4.5">
+          </div>
         </div>
         <div class="form-group">
-          <label>Reviewer</label>
-          <select id="f_reviewer">
-            <option value="TinTin">🐕 TinTin</option>
-            <option value="Luca">🐕 Luca</option>
-          </select>
+          <label>💬 TinTin says</label>
+          <textarea id="f_tinComment" placeholder="ความรู้สึกจาก TinTin..."></textarea>
+        </div>
+      </div>
+
+      <!-- Luca Review -->
+      <div style="background:#F5F0FF;border:2px solid #D8C8F5;border-radius:14px;padding:14px;margin-bottom:10px;">
+        <h4 style="font-family:'Quicksand',sans-serif;font-size:14px;font-weight:700;color:#7C3AED;margin-bottom:10px;">🧐 รีวิวจาก Luca</h4>
+        <div class="form-row">
+          <div class="form-group">
+            <label>⭐ Luca Score (1-5)</label>
+            <input type="number" step="0.1" min="1" max="5" id="f_lucaScore" placeholder="4.5">
+          </div>
+        </div>
+        <label style="font-size:11px;font-weight:600;color:#8D6E63;margin-bottom:4px;display:block;">Sub-scores (1-5)</label>
+        <div class="form-row">
+          <div class="form-group">
+            <label>✨ ความสะอาด</label>
+            <input type="number" step="0.1" min="1" max="5" id="f_lucaSub1" placeholder="4.5">
+          </div>
+          <div class="form-group">
+            <label>🍽️ อาหาร/เครื่องดื่ม</label>
+            <input type="number" step="0.1" min="1" max="5" id="f_lucaSub2" placeholder="4.0">
+          </div>
+          <div class="form-group">
+            <label>🛡️ ความปลอดภัย</label>
+            <input type="number" step="0.1" min="1" max="5" id="f_lucaSub3" placeholder="4.5">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>💬 Luca says</label>
+          <textarea id="f_lucaComment" placeholder="ความรู้สึกจาก Luca..."></textarea>
         </div>
       </div>
 
       <div class="form-row">
         <div class="form-group">
-          <label>เวลาเปิด</label>
+          <label>🕐 เวลาเปิด</label>
           <input type="text" id="f_hours" placeholder="09:00-21:00">
         </div>
         <div class="form-group">
-          <label>ราคา</label>
+          <label>💰 ราคา</label>
           <select id="f_price">
             <option value="฿">฿ ประหยัด</option>
             <option value="฿฿" selected>฿฿ ปานกลาง</option>
@@ -1668,11 +1752,6 @@ initMap();
             <option value="฿฿฿฿">฿฿฿฿ พรีเมียม</option>
           </select>
         </div>
-      </div>
-
-      <div class="form-group">
-        <label>💬 คอมเมนต์รีวิว</label>
-        <textarea id="f_comment" placeholder="ความรู้สึกจาก TinTin / Luca..."></textarea>
       </div>
 
       <div class="form-row">
@@ -1753,8 +1832,17 @@ initMap();
 
       <div style="background:#fff;border:1.5px solid #f0e6da;border-radius:14px;padding:16px;margin-bottom:12px;">
         <h4 style="font-family:'Quicksand',sans-serif;font-size:14px;font-weight:700;color:#3E2723;margin-bottom:10px;">🌟 TinTin</h4>
-        <label style="font-size:10px;color:#8D6E63;">URL รูปโปรไฟล์</label>
-        <input type="text" id="pf_img1" style="width:100%;padding:8px;border:2px solid #ece4db;border-radius:10px;font-size:12px;font-family:'Kanit';outline:none;margin-top:4px;">
+        <label style="font-size:10px;color:#8D6E63;">รูปโปรไฟล์</label>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
+          <div id="pfPreview1" style="width:60px;height:60px;border-radius:50%;background:#f0e6da url() center/cover;border:2px solid #FDDCB5;flex-shrink:0;"></div>
+          <div style="flex:1;">
+            <label style="display:inline-flex;align-items:center;gap:4px;background:#fff;border:1.5px solid #e0d6cc;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:11px;font-weight:600;color:#8D6E63;font-family:'Kanit',sans-serif;">
+              📷 อัปโหลดรูป
+              <input type="file" accept="image/*" style="display:none;" onchange="handleProfileUpload(1, event)">
+            </label>
+          </div>
+        </div>
+        <input type="hidden" id="pf_img1">
         <label style="font-size:10px;color:#8D6E63;margin-top:8px;display:block;">ชื่อ</label>
         <input type="text" id="pf_name1" style="width:100%;padding:8px;border:2px solid #ece4db;border-radius:10px;font-size:13px;font-family:'Kanit';outline:none;margin-top:4px;">
         <label style="font-size:10px;color:#8D6E63;margin-top:8px;display:block;">สายพันธุ์ / อายุ</label>
@@ -1767,8 +1855,17 @@ initMap();
 
       <div style="background:#fff;border:1.5px solid #f0e6da;border-radius:14px;padding:16px;margin-bottom:12px;">
         <h4 style="font-family:'Quicksand',sans-serif;font-size:14px;font-weight:700;color:#3E2723;margin-bottom:10px;">🧐 Luca</h4>
-        <label style="font-size:10px;color:#8D6E63;">URL รูปโปรไฟล์</label>
-        <input type="text" id="pf_img2" style="width:100%;padding:8px;border:2px solid #ece4db;border-radius:10px;font-size:12px;font-family:'Kanit';outline:none;margin-top:4px;">
+        <label style="font-size:10px;color:#8D6E63;">รูปโปรไฟล์</label>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
+          <div id="pfPreview2" style="width:60px;height:60px;border-radius:50%;background:#f0e6da url() center/cover;border:2px solid #D8C8F5;flex-shrink:0;"></div>
+          <div style="flex:1;">
+            <label style="display:inline-flex;align-items:center;gap:4px;background:#fff;border:1.5px solid #e0d6cc;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:11px;font-weight:600;color:#8D6E63;font-family:'Kanit',sans-serif;">
+              📷 อัปโหลดรูป
+              <input type="file" accept="image/*" style="display:none;" onchange="handleProfileUpload(2, event)">
+            </label>
+          </div>
+        </div>
+        <input type="hidden" id="pf_img2">
         <label style="font-size:10px;color:#8D6E63;margin-top:8px;display:block;">ชื่อ</label>
         <input type="text" id="pf_name2" style="width:100%;padding:8px;border:2px solid #ece4db;border-radius:10px;font-size:13px;font-family:'Kanit';outline:none;margin-top:4px;">
         <label style="font-size:10px;color:#8D6E63;margin-top:8px;display:block;">สายพันธุ์ / อายุ</label>
@@ -2070,22 +2167,31 @@ function showForm(id) {
     document.getElementById('mapLinkStatus').style.color = '#16A34A';
     document.getElementById('f_area').value = p.area;
     document.getElementById('f_tel').value = p.tel;
-    document.getElementById('f_score').value = p.score;
-    document.getElementById('f_reviewer').value = p.reviewer;
     document.getElementById('f_hours').value = p.hours || '';
     document.getElementById('f_price').value = p.price || '฿฿';
-    document.getElementById('f_comment').value = p.comment || '';
     document.getElementById('f_desc').value = p.desc || '';
     document.getElementById('f_active').value = p.active !== false ? 'true' : 'false';
+    // Dual scores
+    document.getElementById('f_tinScore').value = p.tinScore || p.score || '';
+    document.getElementById('f_tinSub1').value = p.tinSub1 || '';
+    document.getElementById('f_tinSub2').value = p.tinSub2 || '';
+    document.getElementById('f_tinSub3').value = p.tinSub3 || '';
+    document.getElementById('f_tinComment').value = p.tinComment || p.comment || '';
+    document.getElementById('f_lucaScore').value = p.lucaScore || '';
+    document.getElementById('f_lucaSub1').value = p.lucaSub1 || '';
+    document.getElementById('f_lucaSub2').value = p.lucaSub2 || '';
+    document.getElementById('f_lucaSub3').value = p.lucaSub3 || '';
+    document.getElementById('f_lucaComment').value = p.lucaComment || '';
     // Load photos
     formPhotos = [...(p.photos || [])];
     if (formPhotos.length === 0 && p.img) formPhotos = [p.img];
     renderPhotoGrid();
   } else {
     document.getElementById('formTitle').innerHTML = '➕ เพิ่มสถานที่ใหม่';
-    ['f_name','f_petSize','f_desc','f_lat','f_lng','f_maplink','f_area','f_tel','f_score','f_comment','f_hours'].forEach(id => document.getElementById(id).value = '');
+    ['f_name','f_petSize','f_desc','f_lat','f_lng','f_maplink','f_area','f_tel','f_hours',
+     'f_tinScore','f_tinSub1','f_tinSub2','f_tinSub3','f_tinComment',
+     'f_lucaScore','f_lucaSub1','f_lucaSub2','f_lucaSub3','f_lucaComment'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('f_cat').value = 'cafe';
-    document.getElementById('f_reviewer').value = 'TinTin';
     document.getElementById('f_price').value = '฿฿';
     document.getElementById('f_active').value = 'true';
     document.getElementById('mapLinkStatus').innerHTML = '';
@@ -2111,6 +2217,11 @@ function savePlace() {
   if (!name) { alert('กรุณาใส่ชื่อสถานที่'); return; }
 
   const mainImg = formPhotos.length > 0 ? formPhotos[0] : 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&h=300&fit=crop';
+  const tinScore = parseFloat(document.getElementById('f_tinScore').value) || 0;
+  const lucaScore = parseFloat(document.getElementById('f_lucaScore').value) || 0;
+  const totalScores = (tinScore > 0 ? 1 : 0) + (lucaScore > 0 ? 1 : 0);
+  const avgScore = totalScores > 0 ? ((tinScore + lucaScore) / totalScores) : 4.0;
+
   const data = {
     name: name,
     cat: document.getElementById('f_cat').value,
@@ -2122,16 +2233,26 @@ function savePlace() {
     mapLink: document.getElementById('f_maplink').value.trim(),
     tel: document.getElementById('f_tel').value.trim(),
     petSize: document.getElementById('f_petSize').value.trim() || 'S, M, L',
-    score: parseFloat(document.getElementById('f_score').value) || 4.0,
     area: document.getElementById('f_area').value.trim(),
     hours: document.getElementById('f_hours').value.trim(),
     price: document.getElementById('f_price').value,
-    reviewer: document.getElementById('f_reviewer').value,
-    reviewerImg: document.getElementById('f_reviewer').value === 'TinTin'
-      ? 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=60&h=60&fit=crop'
-      : 'https://images.unsplash.com/photo-1583337130417-13571c84e434?w=60&h=60&fit=crop',
+    // Dual review system
+    score: Math.round(avgScore * 10) / 10,
+    tinScore: tinScore || null,
+    tinSub1: parseFloat(document.getElementById('f_tinSub1').value) || null,
+    tinSub2: parseFloat(document.getElementById('f_tinSub2').value) || null,
+    tinSub3: parseFloat(document.getElementById('f_tinSub3').value) || null,
+    tinComment: document.getElementById('f_tinComment').value.trim(),
+    lucaScore: lucaScore || null,
+    lucaSub1: parseFloat(document.getElementById('f_lucaSub1').value) || null,
+    lucaSub2: parseFloat(document.getElementById('f_lucaSub2').value) || null,
+    lucaSub3: parseFloat(document.getElementById('f_lucaSub3').value) || null,
+    lucaComment: document.getElementById('f_lucaComment').value.trim(),
+    // Legacy fields for backward compatibility
+    reviewer: tinScore >= lucaScore ? 'TinTin' : 'Luca',
+    reviewerImg: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=60&h=60&fit=crop',
     reviewDate: new Date().toLocaleDateString('th-TH', { day:'numeric', month:'short', year:'numeric' }),
-    comment: document.getElementById('f_comment').value.trim(),
+    comment: document.getElementById('f_tinComment').value.trim() || document.getElementById('f_lucaComment').value.trim(),
     photos: formPhotos.length > 0 ? [...formPhotos] : [mainImg],
     active: document.getElementById('f_active').value === 'true',
   };
@@ -2288,11 +2409,44 @@ function getProfile() {
 
 function loadProfileToForm() {
   const p = getProfile();
-  const fields = ['title','tagline','bio','stat1','stat2','stat3','stat4','img1','name1','breed1','personality1','style1','img2','name2','breed2','personality2','style2'];
+  const fields = ['title','tagline','bio','stat1','stat2','stat3','stat4','name1','breed1','personality1','style1','name2','breed2','personality2','style2'];
   fields.forEach(f => {
     const el = document.getElementById('pf_' + f);
     if (el) el.value = p[f] || '';
   });
+  // Hidden img fields
+  document.getElementById('pf_img1').value = p.img1 || '';
+  document.getElementById('pf_img2').value = p.img2 || '';
+  // Preview images
+  const pv1 = document.getElementById('pfPreview1');
+  const pv2 = document.getElementById('pfPreview2');
+  if (pv1 && p.img1) pv1.style.backgroundImage = 'url(' + p.img1 + ')';
+  if (pv2 && p.img2) pv2.style.backgroundImage = 'url(' + p.img2 + ')';
+}
+
+function handleProfileUpload(num, e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const MAX = 400;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const compressed = canvas.toDataURL('image/jpeg', 0.8);
+      document.getElementById('pf_img' + num).value = compressed;
+      document.getElementById('pfPreview' + num).style.backgroundImage = 'url(' + compressed + ')';
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 
 function saveProfile() {
