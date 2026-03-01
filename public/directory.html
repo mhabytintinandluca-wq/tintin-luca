@@ -1357,7 +1357,7 @@ function renderCards() {
   const filtered = getFiltered();
   document.getElementById('dirCount').textContent = '🐾 ' + filtered.length + ' สถานที่ที่ TinTin & Luca แนะนำ';
   list.innerHTML = filtered.map((p, i) =>
-    '<div class="p-card ' + (selectedPlace && selectedPlace.id === p.id ? 'selected' : '') + '" id="card-' + p.id + '" style="animation-delay:' + (i*0.06) + 's" onclick="selectPlace(' + p.id + ')">' +
+    '<div class="p-card ' + (selectedPlace && selectedPlace.id === p.id ? 'selected' : '') + '" id="card-' + p.id + '" style="animation-delay:' + (i*0.06) + 's" onclick="selectPlace(\'' + p.id + '\')">' +
       '<div class="p-card-top" style="background-image:url(' + p.img + ')">' +
         '<span class="cat-label" style="background:' + (CAT_COLORS[p.cat]||'#F2994A') + '">' + p.catLabel + '</span>' +
         '<span class="paw-score-badge">🐾 ' + p.score.toFixed(1) + '</span>' +
@@ -1407,7 +1407,7 @@ function renderMarkers(places) {
     m.bindPopup(
       '<div class="popup-inner"><h3>' + p.name + '</h3>' +
       '<p class="popup-paw">' + pawIcons(p.score, 11) + ' ' + p.score.toFixed(1) + ' · 📍 ' + p.area + '</p>' +
-      '<button onclick="selectPlace(' + p.id + ')">ดูรีวิวจาก ' + p.reviewer + '</button></div>',
+      '<button onclick="selectPlace(\'' + p.id + '\')">ดูรีวิวจาก ' + p.reviewer + '</button></div>',
       { closeButton: false }
     );
     m.addTo(map);
@@ -1419,7 +1419,7 @@ function renderMarkers(places) {
 
 // ===== SELECT =====
 function selectPlace(id) {
-  const p = PLACES.find(x => x.id === id);
+  const p = PLACES.find(x => String(x.id) === String(id));
   if (!p) return;
   selectedPlace = p;
   
@@ -1504,7 +1504,7 @@ function selectPlace(id) {
 
   // Photos
   reviewHTML += '<div class="detail-review-photos" style="margin-top:10px;">' +
-    p.photos.map((ph, i) => '<img src="' + ph + '" alt="review" onclick="openLightbox(' + p.id + ',' + i + ')">').join('') +
+    p.photos.map((ph, i) => '<img src="' + ph + '" alt="review" onclick="openLightbox(\'' + p.id + '\',' + i + ')">').join('') +
   '</div>';
 
   document.getElementById('dReview').innerHTML = reviewHTML;
@@ -2107,8 +2107,8 @@ function renderAdminList() {
       '</div>' +
       '<div class="active-dot" style="background:' + (p.active !== false ? '#4ade80' : '#f87171') + '" title="' + (p.active !== false ? 'Active':'Inactive') + '"></div>' +
       '<div class="admin-item-actions">' +
-        '<button class="btn-icon" title="แก้ไข" onclick="showForm(' + p.id + ')">✏️</button>' +
-        '<button class="btn-icon delete" title="ลบ" onclick="deletePlace(' + p.id + ')">🗑️</button>' +
+        '<button class="btn-icon" title="แก้ไข" onclick="showForm(\'' + p.id + '\')">✏️</button>' +
+        '<button class="btn-icon delete" title="ลบ" onclick="deletePlace(\'' + p.id + '\')">🗑️</button>' +
       '</div>' +
     '</div>'
   ).join('');
@@ -2212,16 +2212,16 @@ function showForm(id) {
   document.querySelector('.admin-toolbar').style.display = 'none';
 
   if (id) {
-    const p = PLACES.find(x => x.id === id);
-    if (!p) return;
+    const p = PLACES.find(x => String(x.id) === String(id));
+    if (!p) { console.warn('Place not found:', id); return; }
     document.getElementById('formTitle').innerHTML = '✏️ แก้ไข: ' + p.name;
     document.getElementById('f_name').value = p.name;
     document.getElementById('f_cat').value = p.cat;
     document.getElementById('f_petSize').value = p.petSize;
-    document.getElementById('f_lat').value = p.lat;
-    document.getElementById('f_lng').value = p.lng;
+    document.getElementById('f_lat').value = p.lat || '';
+    document.getElementById('f_lng').value = p.lng || '';
     document.getElementById('f_maplink').value = p.mapLink || ('https://www.google.com/maps?q=' + p.lat + ',' + p.lng);
-    document.getElementById('mapLinkStatus').innerHTML = '✅ พิกัด: ' + p.lat.toFixed(4) + ', ' + p.lng.toFixed(4);
+    document.getElementById('mapLinkStatus').innerHTML = '✅ พิกัด: ' + (p.lat ? parseFloat(p.lat).toFixed(4) : '?') + ', ' + (p.lng ? parseFloat(p.lng).toFixed(4) : '?');
     document.getElementById('mapLinkStatus').style.color = '#16A34A';
     document.getElementById('f_area').value = p.area;
     document.getElementById('f_tel').value = p.tel;
@@ -2316,7 +2316,7 @@ function savePlace() {
   };
 
   if (editingId) {
-    const idx = PLACES.findIndex(p => p.id === editingId);
+    const idx = PLACES.findIndex(p => String(p.id) === String(editingId));
     if (idx >= 0) { data.id = editingId; PLACES[idx] = data; }
   } else {
     data.id = 'p' + Date.now();
@@ -2339,10 +2339,10 @@ function savePlace() {
 
 // ===== DELETE PLACE =====
 function deletePlace(id) {
-  const p = PLACES.find(x => x.id === id);
+  const p = PLACES.find(x => String(x.id) === String(id));
   if (!p) return;
   if (!confirm('ลบ "' + p.name + '" จริงหรือไม่?')) return;
-  const idx = PLACES.findIndex(x => x.id === id);
+  const idx = PLACES.findIndex(x => String(x.id) === String(id));
   if (idx >= 0) PLACES.splice(idx, 1);
   
   // Delete from API (background)
