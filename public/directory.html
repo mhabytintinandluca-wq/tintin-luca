@@ -1278,10 +1278,14 @@ body { font-family:'Kanit',sans-serif; background:var(--cream); color:var(--text
           <div class="info-item"><span class="icon">🕐</span><div><div class="lbl">เวลาเปิด</div><div class="val" id="dHours"></div></div></div>
           <div class="info-item"><span class="icon">💰</span><div><div class="lbl">ราคา</div><div class="val" id="dPrice"></div></div></div>
         </div>
+        <!-- Mini Map -->
+        <div id="dMapPreview" style="width:100%;height:180px;border-radius:14px;overflow:hidden;border:2px solid #f0e6da;margin-bottom:12px;position:relative;">
+          <iframe id="dMapFrame" src="" style="width:100%;height:100%;border:none;" loading="lazy" allowfullscreen></iframe>
+        </div>
         <div class="detail-actions">
-          <button class="btn-act map" id="btnMap">🗺️ เส้นทาง</button>
-          <button class="btn-act call" id="btnCall">📞 โทร</button>
           <button class="btn-act nav" id="btnNav">🧭 นำทาง</button>
+          <button class="btn-act map" id="btnMap">🗺️ Google Maps</button>
+          <button class="btn-act call" id="btnCall">📞 โทร</button>
         </div>
       </div>
     </div>
@@ -1292,28 +1296,34 @@ body { font-family:'Kanit',sans-serif; background:var(--cream); color:var(--text
 // ===== DATA =====
 const PLACES = [
   { id:1, name:"Buddy's Brew Café", cat:"cafe", catLabel:"คาเฟ่", desc:"คาเฟ่ลับย่านอารีย์ที่ TinTin ชอบมาก! มีสนามหญ้าด้านหลังให้วิ่งเล่น กาแฟดี ขนมอร่อย มีเมนูน้องหมาด้วย", img:"https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600&h=300&fit=crop", score:4.8, petSize:"S, M, L", tel:"02-123-4567", area:"อารีย์", lat:13.7780, lng:100.5440, hours:"08:00-20:00", price:"฿฿",
-    reviewer:"TinTin", reviewerImg:"https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=60&h=60&fit=crop", reviewDate:"15 ก.พ. 2026",
-    comment:"หอมกาแฟมากก สนามหญ้านุ่มมาก วิ่งจนเหนื่อยเลย! พี่บาริสต้าใจดีให้ขนมด้วย 🐾",
+    tinScore:4.9, tinSub1:5.0, tinSub2:4.8, tinSub3:4.9, tinComment:"หอมกาแฟมากก สนามหญ้านุ่มมาก วิ่งจนเหนื่อยเลย! พี่บาริสต้าใจดีให้ขนมด้วย 🐾",
+    lucaScore:4.7, lucaSub1:4.5, lucaSub2:4.8, lucaSub3:4.7, lucaComment:"กาแฟหอมดี ขนมก็อร่อย แต่ต้องระวังมดนิดนึง โดยรวมสะอาดดี ให้ผ่าน! ☕",
+    reviewer:"TinTin", reviewerImg:"https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=60&h=60&fit=crop", reviewDate:"15 ก.พ. 2026", comment:"หอมกาแฟมากก สนามหญ้านุ่มมาก",
     photos:["https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=100&h=100&fit=crop","https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=100&h=100&fit=crop","https://images.unsplash.com/photo-1530281700549-e82e7bf110d6?w=100&h=100&fit=crop"] },
   { id:2, name:"Woof & Dine", cat:"restaurant", catLabel:"ร้านอาหาร", desc:"ร้านอาหารอิตาเลียนย่านทองหล่อ มีโซน Pet Zone แยกเฉพาะ พื้นที่กว้าง น้ำดื่มฟรีสำหรับน้องหมา", img:"https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&h=300&fit=crop", score:4.5, petSize:"S, M", tel:"02-234-5678", area:"ทองหล่อ", lat:13.7305, lng:100.5785, hours:"11:00-22:00", price:"฿฿฿",
-    reviewer:"Luca", reviewerImg:"https://images.unsplash.com/photo-1583337130417-13571c84e434?w=60&h=60&fit=crop", reviewDate:"10 ก.พ. 2026",
-    comment:"พาสต้าหอมดี แต่ไม่ได้แบ่งให้กิน 😤 โซนน้องหมาสะอาดดี มีแอร์เย็นสบาย ให้ผ่าน!",
+    tinScore:4.6, tinSub1:4.5, tinSub2:4.3, tinSub3:4.8, tinComment:"บรรยากาศดีมาก แอร์เย็นสบาย พี่ๆ เซิร์ฟเวอร์มาเล่นด้วย ชอบ!",
+    lucaScore:4.4, lucaSub1:4.5, lucaSub2:4.2, lucaSub3:4.5, lucaComment:"พาสต้าหอมดี แต่ไม่ได้แบ่งให้กิน 😤 โซนน้องหมาสะอาดดี มีแอร์เย็นสบาย ให้ผ่าน!",
+    reviewer:"Luca", reviewerImg:"https://images.unsplash.com/photo-1583337130417-13571c84e434?w=60&h=60&fit=crop", reviewDate:"10 ก.พ. 2026", comment:"พาสต้าหอมดี",
     photos:["https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=100&h=100&fit=crop","https://images.unsplash.com/photo-1559305616-3f99cd43e353?w=100&h=100&fit=crop"] },
   { id:3, name:"Paws Paradise Resort", cat:"hotel", catLabel:"โรงแรม", desc:"รีสอร์ทริมทะเลหัวหิน สุดยอด Pet Friendly! มีสระว่ายน้ำสุนัข สนามวิ่ง และบริการ Pet Sitter ตลอด 24 ชม.", img:"https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&h=300&fit=crop", score:5.0, petSize:"S, M, L", tel:"032-345-678", area:"หัวหิน", lat:12.5684, lng:99.9577, hours:"Check-in 14:00", price:"฿฿฿฿",
-    reviewer:"TinTin", reviewerImg:"https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=60&h=60&fit=crop", reviewDate:"2 ก.พ. 2026",
-    comment:"ที่นี่สุดยอดดดด!! สระว่ายน้ำเจ๋งมาก หาดทรายนุ่ม วิ่งได้ทั้งวัน ไม่อยากกลับบ้านเลย!! 🏖️🐾",
+    tinScore:5.0, tinSub1:5.0, tinSub2:5.0, tinSub3:5.0, tinComment:"ที่นี่สุดยอดดดด!! สระว่ายน้ำเจ๋งมาก หาดทรายนุ่ม วิ่งได้ทั้งวัน ไม่อยากกลับบ้านเลย!! 🏖️🐾",
+    lucaScore:5.0, lucaSub1:5.0, lucaSub2:4.8, lucaSub3:5.0, lucaComment:"ห้องสะอาดมาก มี Pet Sitter ดูแลดี อาหารอร่อย ปลอดภัย 100% ให้ 5 ดาวเต็ม! ⭐",
+    reviewer:"TinTin", reviewerImg:"https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=60&h=60&fit=crop", reviewDate:"2 ก.พ. 2026", comment:"ที่นี่สุดยอด!",
     photos:["https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=100&h=100&fit=crop","https://images.unsplash.com/photo-1540555700478-4be289fbec6d?w=100&h=100&fit=crop","https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=100&h=100&fit=crop"] },
   { id:4, name:"Bark Park BKK", cat:"park", catLabel:"สวน", desc:"สวนสุนัขกลางกรุง แบ่งโซนเล็ก-ใหญ่ มีอุปกรณ์ออกกำลังกาย สระน้ำ และร้านกาแฟในสวน", img:"https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=600&h=300&fit=crop", score:4.3, petSize:"S, M, L", tel:"02-456-7890", area:"บางนา", lat:13.6627, lng:100.6368, hours:"06:00-20:00", price:"฿",
-    reviewer:"Luca", reviewerImg:"https://images.unsplash.com/photo-1583337130417-13571c84e434?w=60&h=60&fit=crop", reviewDate:"20 ม.ค. 2026",
-    comment:"สวนกว้างดี แต่วันเสาร์คนเยอะมาก ต้องไปเช้าๆ สระน้ำโอเค แต่อยากให้สะอาดกว่านี้นิดนึง",
+    tinScore:4.5, tinSub1:4.3, tinSub2:4.8, tinSub3:4.5, tinComment:"สวนกว้างมาก วิ่งเต็มที่! มีเพื่อนเล่นเยอะ สนุกสุดๆ แต่วันเสาร์คนเยอะ",
+    lucaScore:4.0, lucaSub1:3.8, lucaSub2:4.0, lucaSub3:4.2, lucaComment:"สระน้ำโอเค แต่อยากให้สะอาดกว่านี้นิดนึง ร่มเงาพอมี ให้ผ่านแบบฉิว",
+    reviewer:"Luca", reviewerImg:"https://images.unsplash.com/photo-1583337130417-13571c84e434?w=60&h=60&fit=crop", reviewDate:"20 ม.ค. 2026", comment:"สวนกว้างดี",
     photos:["https://images.unsplash.com/photo-1530281700549-e82e7bf110d6?w=100&h=100&fit=crop"] },
   { id:5, name:"Zen Dog Spa", cat:"spa", catLabel:"สปา", desc:"สปาพรีเมียม Grooming + นวดผ่อนคลายสำหรับน้องหมา พร้อมบริการ Onsen สไตล์ญี่ปุ่น สำหรับเจ้าของ", img:"https://images.unsplash.com/photo-1540555700478-4be289fbec6d?w=600&h=300&fit=crop", score:4.7, petSize:"S, M, L", tel:"02-567-8901", area:"สาทร", lat:13.7215, lng:100.5288, hours:"10:00-19:00", price:"฿฿฿",
-    reviewer:"TinTin", reviewerImg:"https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=60&h=60&fit=crop", reviewDate:"25 ม.ค. 2026",
-    comment:"อาบน้ำเสร็จหอมฟุ้งเลย! พี่ช่างเบามือมาก ไม่กลัวเลย ขนฟูสวยมากก ✨",
+    tinScore:4.5, tinSub1:4.8, tinSub2:4.0, tinSub3:4.7, tinComment:"อาบน้ำสบายมาก หลับเลย! พี่ๆ ดูแลเบามือ ไม่กลัวเลย 😴",
+    lucaScore:4.8, lucaSub1:5.0, lucaSub2:4.5, lucaSub3:4.8, lucaComment:"สะอาดมาก! อุปกรณ์ดี ไม่มีกลิ่น น้ำยาอ่อนโยน ผ่านแน่นอน ✨",
+    reviewer:"TinTin", reviewerImg:"https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=60&h=60&fit=crop", reviewDate:"25 ม.ค. 2026", comment:"อาบน้ำสบายมาก",
     photos:["https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=100&h=100&fit=crop","https://images.unsplash.com/photo-1583337130417-13571c84e434?w=100&h=100&fit=crop"] },
   { id:6, name:"Fetch & Feast", cat:"cafe", catLabel:"คาเฟ่", desc:"คาเฟ่หมาสุดฮิปย่านเอกมัย เมนู Specialty Coffee ระดับ Championship พร้อมเมนูเค้กน้องหมา Handmade", img:"https://images.unsplash.com/photo-1559305616-3f99cd43e353?w=600&h=300&fit=crop", score:4.6, petSize:"S, M", tel:"02-678-9012", area:"เอกมัย", lat:13.7224, lng:100.5853, hours:"09:00-21:00", price:"฿฿",
-    reviewer:"Luca", reviewerImg:"https://images.unsplash.com/photo-1583337130417-13571c84e434?w=60&h=60&fit=crop", reviewDate:"8 ก.พ. 2026",
-    comment:"เค้กหมาอร่อยมาก! (ปกติเรื่องมากนะ) ร้านตกแต่งน่ารัก แอร์เย็น ที่นั่งนุ่ม ชอบ 🎂",
+    tinScore:4.7, tinSub1:4.5, tinSub2:4.5, tinSub3:5.0, tinComment:"มุมถ่ายรูปสวยมาก! เค้กน้องหมาอร่อย บรรยากาศน่ารักสุดๆ 📸",
+    lucaScore:4.5, lucaSub1:4.3, lucaSub2:4.8, lucaSub3:4.3, lucaComment:"เค้กน้องหมาใช้ได้เลย รสชาติโอเค สะอาดพอใช้ แต่คนเสาร์อาทิตย์เยอะ",
+    reviewer:"Luca", reviewerImg:"https://images.unsplash.com/photo-1583337130417-13571c84e434?w=60&h=60&fit=crop", reviewDate:"8 ก.พ. 2026", comment:"เค้กน้องหมาอร่อย",
     photos:["https://images.unsplash.com/photo-1559305616-3f99cd43e353?w=100&h=100&fit=crop","https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=100&h=100&fit=crop"] },
 ];
 
@@ -1530,6 +1540,9 @@ function selectPlace(id) {
   document.getElementById('btnNav').onclick = () => window.open('https://www.google.com/maps/dir/?api=1&destination=' + p.lat + ',' + p.lng, '_blank');
   document.getElementById('btnCall').onclick = () => window.open('tel:' + p.tel.replace(/-/g,''));
   document.getElementById('btnMap').onclick = () => window.open('https://www.google.com/maps?q=' + p.lat + ',' + p.lng, '_blank');
+  
+  // Load mini map
+  document.getElementById('dMapFrame').src = 'https://maps.google.com/maps?q=' + p.lat + ',' + p.lng + '&z=15&output=embed';
 
   document.getElementById('detailOverlay').classList.add('open');
   
