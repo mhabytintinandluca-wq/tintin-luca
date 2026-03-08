@@ -1,2484 +1,971 @@
-'use client'
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+"use client";
+import { useState, useEffect, useRef } from "react";
+import { createClient } from "@supabase/supabase-js";
 
-// ─── Supabase Client ────────────────────────────────────────────────────────
-// npm install @supabase/supabase-js
-// .env.local: NEXT_PUBLIC_SUPABASE_URL=... NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-let supabase = null;
-try {
-  const { createClient } = require('@supabase/supabase-js');
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (url && key) supabase = createClient(url, key);
-} catch(e) { /* Supabase not installed yet */ }
-// ────────────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// MHA' STORY — Dog DNA Quiz Platform v8
+// Stack: Next.js + Supabase + Vercel
+// Features: 12 Quiz Topics, DNA Helix Dashboard, Dog Profile, Supabase Auth
+// ═══════════════════════════════════════════════════════════════════════════
 
-// MHA' Story Dog DNA Quiz Platform - Gamification v2
+// ─── SUPABASE CONFIG ───────────────────────────────────────────────────────
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://your-project.supabase.co";
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "your-anon-key";
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ─── TEST MODE ─────────────────────────────────────────────────────────────
+const TEST_MODE = true; // Set false for production (lock topics)
+
+// ─── BREED LIST ────────────────────────────────────────────────────────────
+const BREEDS = [
+  "Golden Retriever", "Labrador Retriever", "Poodle", "French Bulldog", "Bulldog",
+  "German Shepherd", "Beagle", "Rottweiler", "Dachshund", "Corgi",
+  "Shiba Inu", "Siberian Husky", "Border Collie", "Chihuahua", "Pomeranian",
+  "Yorkshire Terrier", "Maltese", "Shih Tzu", "Pug", "Boxer",
+  "Doberman", "Great Dane", "Cavalier King Charles", "Boston Terrier", "Akita",
+  "Bernese Mountain Dog", "Samoyed", "Thai Bangkaew", "Thai Ridgeback",
+  "Mixed / ลูกผสม", "อื่นๆ (กรอกเอง)"
+];
+
+// ─── 5 DIMENSIONS ──────────────────────────────────────────────────────────
+const DIMENSIONS = {
+  BOND: { name: "BOND", icon: "💕", color: "#FF6B9D", label: "ความผูกพัน" },
+  DRIVE: { name: "DRIVE", icon: "⚡", color: "#FFD93D", label: "แรงขับ" },
+  MIND: { name: "MIND", icon: "🧠", color: "#6BCB77", label: "สติปัญญา" },
+  NERVE: { name: "NERVE", icon: "🛡️", color: "#4D96FF", label: "ความมั่นคง" },
+  WILD: { name: "WILD", icon: "🐺", color: "#9B59B6", label: "สัญชาตญาณ" }
+};
+
+// ─── DIMENSION THEME FOR RESULT SCREEN ─────────────────────────────────────
+const dimensionTheme = {
+  BOND: { bg: "linear-gradient(135deg, #2D1B3D 0%, #1A1025 100%)", accent: "#FF6B9D", glow: "rgba(255,107,157,0.3)" },
+  DRIVE: { bg: "linear-gradient(135deg, #2D2B1B 0%, #1A1910 100%)", accent: "#FFD93D", glow: "rgba(255,217,61,0.3)" },
+  MIND: { bg: "linear-gradient(135deg, #1B2D1F 0%, #101A12 100%)", accent: "#6BCB77", glow: "rgba(107,203,119,0.3)" },
+  NERVE: { bg: "linear-gradient(135deg, #1B2535 0%, #0F1620 100%)", accent: "#4D96FF", glow: "rgba(77,150,255,0.3)" },
+  WILD: { bg: "linear-gradient(135deg, #2B1B35 0%, #18101F 100%)", accent: "#9B59B6", glow: "rgba(155,89,182,0.3)" }
+};
+
+// ─── 12 QUIZ TOPICS ────────────────────────────────────────────────────────
+const allTopics = [
+  // BOND Dimension
+  { id: 1, dimension: "BOND", title: "The Stare Code", subtitle: "ถอดรหัสสายตา", emoji: "👁️", unlockAt: 0, quizType: "choice" },
+  { id: 2, dimension: "BOND", title: "Empathy Radar", subtitle: "เรดาร์ความเห็นอกเห็นใจ", emoji: "💓", unlockAt: 1, quizType: "choice" },
+  { id: 3, dimension: "BOND", title: "6th Sense", subtitle: "สัมผัสที่หก", emoji: "✨", unlockAt: 2, quizType: "choice" },
+  // DRIVE Dimension
+  { id: 4, dimension: "DRIVE", title: "Food Soul", subtitle: "จิตวิญญาณนักกิน", emoji: "🍖", unlockAt: 3, quizType: "swipe" },
+  { id: 5, dimension: "DRIVE", title: "Play DNA", subtitle: "ยีนนักเล่น", emoji: "🎾", unlockAt: 4, quizType: "slider" },
+  { id: 6, dimension: "DRIVE", title: "Energy Core", subtitle: "แกนพลังงาน", emoji: "⚡", unlockAt: 5, quizType: "slider" },
+  // MIND Dimension
+  { id: 7, dimension: "MIND", title: "Problem Solver", subtitle: "นักแก้ปัญหา", emoji: "🧩", unlockAt: 6, quizType: "choice" },
+  { id: 8, dimension: "MIND", title: "Memory Bank", subtitle: "คลังความจำ", emoji: "💾", unlockAt: 7, quizType: "choice" },
+  { id: 9, dimension: "MIND", title: "Focus Mode", subtitle: "โหมดจดจ่อ", emoji: "🎯", unlockAt: 8, quizType: "slider" },
+  // NERVE Dimension
+  { id: 10, dimension: "NERVE", title: "Brave Heart", subtitle: "หัวใจกล้าหาญ", emoji: "🦁", unlockAt: 9, quizType: "choice" },
+  { id: 11, dimension: "NERVE", title: "Chill Factor", subtitle: "ระดับความชิล", emoji: "😎", unlockAt: 10, quizType: "slider" },
+  // WILD Dimension
+  { id: 12, dimension: "WILD", title: "Primal Instinct", subtitle: "สัญชาตญาณดั้งเดิม", emoji: "🐺", unlockAt: 11, quizType: "choice" }
+];
+
+// ─── TOPIC PERSONALITY CONFIG ──────────────────────────────────────────────
+const topicPersonalityConfig = {
+  1: { dimension: "BOND", gene: "OXTR rs53576", types: { high: "Soul Gazer", medium: "Heart Reader", low: "Gentle Watcher", veryLow: "Independent Spirit" }, emojis: { high: "✨", medium: "💫", low: "🌙", veryLow: "🌟" } },
+  2: { dimension: "BOND", gene: "SLC6A4", types: { high: "Empath Master", medium: "Mood Mirror", low: "Calm Observer", veryLow: "Zen Master" }, emojis: { high: "💓", medium: "💗", low: "💜", veryLow: "🤍" } },
+  3: { dimension: "BOND", gene: "DRD4", types: { high: "Psychic Pup", medium: "Intuition Guide", low: "Grounded Soul", veryLow: "Present Mind" }, emojis: { high: "🔮", medium: "✨", low: "🌿", veryLow: "🪨" } },
+  4: { dimension: "DRIVE", gene: "MC4R", types: { high: "Food Champion", medium: "Selective Soul", low: "Protein Hunter", veryLow: "Little Grazer" }, emojis: { high: "🏆", medium: "🍽️", low: "🥩", veryLow: "🌱" } },
+  5: { dimension: "DRIVE", gene: "DRD2", types: { high: "Play Legend", medium: "Fun Seeker", low: "Chill Player", veryLow: "Zen Companion" }, emojis: { high: "🎯", medium: "🎾", low: "🎈", veryLow: "☁️" } },
+  6: { dimension: "DRIVE", gene: "PPARGC1A", types: { high: "Turbo Dog", medium: "Active Paw", low: "Balanced Buddy", veryLow: "Couch Potato" }, emojis: { high: "⚡", medium: "🔥", low: "🌤️", veryLow: "🛋️" } },
+  7: { dimension: "MIND", gene: "KIBRA", types: { high: "Genius Pup", medium: "Smart Cookie", low: "Practical Mind", veryLow: "Simple Joy" }, emojis: { high: "🧠", medium: "💡", low: "🔧", veryLow: "🌈" } },
+  8: { dimension: "MIND", gene: "BDNF", types: { high: "Memory Master", medium: "Quick Learner", low: "Routine Lover", veryLow: "Present Moment" }, emojis: { high: "💾", medium: "📚", low: "📝", veryLow: "🌸" } },
+  9: { dimension: "MIND", gene: "COMT", types: { high: "Laser Focus", medium: "Task Switcher", low: "Multi-Tasker", veryLow: "Free Spirit" }, emojis: { high: "🎯", medium: "🔄", low: "🌀", veryLow: "🦋" } },
+  10: { dimension: "NERVE", gene: "CRHR1", types: { high: "Fearless Hero", medium: "Brave Heart", low: "Cautious Soul", veryLow: "Safety First" }, emojis: { high: "🦁", medium: "🐯", low: "🐱", veryLow: "🐰" } },
+  11: { dimension: "NERVE", gene: "SLC6A3", types: { high: "Buddha Dog", medium: "Chill Master", low: "Alert Guard", veryLow: "Worry Warrior" }, emojis: { high: "🧘", medium: "😎", low: "👀", veryLow: "😰" } },
+  12: { dimension: "WILD", gene: "WBSCR17", types: { high: "Wolf Soul", medium: "Wild Heart", low: "Domesticated", veryLow: "Pure Companion" }, emojis: { high: "🐺", medium: "🦊", low: "🐕", veryLow: "🧸" } }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PERSONALITY DATABASE — 12 Topics × 4 Levels (wow, science, funFact, action)
+// ═══════════════════════════════════════════════════════════════════════════
+const personalityDB = {
+  // T1: The Stare Code (BOND)
+  1: {
+    high: { type: "Soul Gazer", emoji: "✨", tagline: "สายตาของน้องคือประตูสู่จิตวิญญาณ", wow: "น้องหมาของคุณอยู่ใน TOP 12% ของโลก — มี Oxytocin Loop ที่หาได้ยากมาก", description: "เมื่อน้องสบตาคุณ ระดับ Oxytocin ในสมองทั้งสองพุ่งสูงพร้อมกัน", scienceSecret: "ยีน OXTR variant rs53576(G/G) ทำให้น้องรู้สึก \"สุขใจ\" เมื่อสบตาเจ้าของ", funFact: "🔬 Nagasawa et al. (2015) พบว่าหลังสบตา 30 นาที Oxytocin เพิ่ม 130%", actionToday: ["👁️ ลองสบตาน้อง 30 วินาที พูดว่า \"I love you\" ช้าๆ", "🧘 ทำ Eye Contact Meditation ก่อนนอน 5 นาที", "📸 ถ่ายภาพขณะน้องสบตา แล้วแชร์ให้เพื่อน"], hook: "🔮 น้องที่สบตาเก่ง มักซ่อน Empathy DNA สูงด้วย!", traits: ["Deep Connection", "Emotional Bond", "Oxytocin Rich", "Soul Reader"], rarity: "✨ 12% — Rare Soulmate" },
+    medium: { type: "Heart Reader", emoji: "💫", tagline: "น้องอ่านใจคุณได้เสมอ", wow: "น้องมี Oxytocin Loop ระดับดี — สามารถสร้าง bond ที่แน่นแฟ้นได้", description: "น้องชอบสบตาเป็นระยะ แสดงความรักในแบบของตัวเอง", scienceSecret: "ระดับ Oxytocin ของน้องเพิ่มขึ้นเมื่ออยู่ใกล้คุณ แม้ไม่ได้สบตาตลอด", funFact: "🐕 หมาที่สบตาปานกลางมักเป็นหมาที่ปรับตัวได้ดีในหลายสถานการณ์", actionToday: ["💕 ชวนน้องเล่นเกมสบตา แล้วให้รางวัลเมื่อมองตา", "🎾 เล่นด้วยกัน 10 นาที เพื่อเพิ่ม bonding"], hook: "น้องอาจซ่อนความสามารถในการอ่านอารมณ์ไว้!", traits: ["Adaptive Bond", "Gentle Connection", "Balanced Love"], rarity: "💫 35% — Common Heart" },
+    low: { type: "Gentle Watcher", emoji: "🌙", tagline: "น้องแสดงความรักในแบบเงียบๆ", wow: "น้องรักคุณแบบไม่ต้องสบตาตลอด — ความรักไม่จำเป็นต้องแสดงออกเสมอ", description: "น้องอาจมาจากสายพันธุ์ที่ไม่ถนัดสบตา แต่รักคุณเต็มที่", scienceSecret: "บางสายพันธุ์เช่น Shiba, Akita ถูกเลี้ยงมาให้หลีกเลี่ยงการสบตาตรง", funFact: "🐺 หมาป่ามองตาตรงหมายถึงท้าทาย — น้องอาจยังมีสัญชาตญาณนี้อยู่", actionToday: ["🌿 อย่าบังคับสบตา ให้น้องมาหาเอง", "🍖 ให้ treat เมื่อน้องมองหน้าคุณเอง"], hook: "ลองทำ Test 12 ดูว่าน้องมี Wild DNA มากแค่ไหน!", traits: ["Independent Love", "Quiet Affection", "Self-Sufficient"], rarity: "🌙 30% — Independent Soul" },
+    veryLow: { type: "Independent Spirit", emoji: "🌟", tagline: "น้องรักอิสระ แต่ยังรักคุณ", wow: "น้องคือหมาที่มีความเป็นตัวเองสูง — หายากในยุคนี้!", description: "น้องไม่ต้องการการยืนยันความรักผ่านสายตา แต่รู้ว่าคุณรักมัน", scienceSecret: "อาจมี OXTR variant ที่ต่างออกไป ทำให้ผูกพันในรูปแบบอื่น", funFact: "🐕‍🦺 หมาทำงานหลายสายพันธุ์ถูกเลี้ยงมาให้โฟกัสงาน ไม่ใช่สบตา", actionToday: ["🎯 หากิจกรรมที่ทำด้วยกันแทนการสบตา", "🦮 พาเดินด้วยกันเป็น bonding activity"], hook: "น้องอาจเป็น Problem Solver ตัวยง — ลอง Test 7!", traits: ["Self-Reliant", "Task-Focused", "Calm Independence"], rarity: "🌟 23% — Free Spirit" }
+  },
+  // T2: Empathy Radar (BOND)
+  2: {
+    high: { type: "Empath Master", emoji: "💓", tagline: "น้องรู้สึกทุกอย่างที่คุณรู้สึก", wow: "น้องมี Mirror Neuron ระดับสูงมาก — สามารถ \"รับ\" อารมณ์คุณได้จริง", description: "เมื่อคุณเศร้า น้องเศร้าด้วย เมื่อคุณดีใจ น้องกระดิกหางทันที", scienceSecret: "ยีน SLC6A4 variant ทำให้น้องไวต่อ Serotonin — รับรู้อารมณ์ได้ละเอียด", funFact: "🧪 งานวิจัยพบว่าหมาสามารถดมกลิ่น Cortisol (ฮอร์โมนเครียด) ในเหงื่อคนได้", actionToday: ["😢 ครั้งหน้าที่เศร้า ลองสังเกตว่าน้องทำอะไร", "🎵 เปิดเพลงผ่อนคลายให้น้องฟังด้วยกัน"], hook: "น้อง Empath มักมี 6th Sense ด้วย — ทำ Test 3!", traits: ["Emotional Mirror", "Stress Detector", "Comfort Giver"], rarity: "💓 15% — Rare Empath" },
+    medium: { type: "Mood Mirror", emoji: "💗", tagline: "น้องปรับอารมณ์ตามคุณได้ดี", wow: "น้องมีความสามารถรับรู้อารมณ์ในระดับปกติ — ซึ่งก็เก่งมากแล้ว!", description: "น้องจะสังเกตเห็นเมื่อคุณมีอารมณ์รุนแรง แต่ไม่ถึงกับรู้ทุกเรื่อง", scienceSecret: "น้องใช้การอ่านสีหน้า ท่าทาง และกลิ่นในการประเมินอารมณ์คุณ", funFact: "🐶 หมาสามารถแยกแยะสีหน้ามนุษย์ได้มากกว่า 100 แบบ", actionToday: ["😊 ฝึกแสดงสีหน้าชัดเจนเมื่อสื่อสารกับน้อง", "🤗 กอดน้องเมื่อคุณรู้สึกดี — มันจะจำได้"], hook: "ลองดูว่าน้องมี Memory Bank แค่ไหนใน Test 8!", traits: ["Face Reader", "Mood Adaptive", "Social Intelligence"], rarity: "💗 40% — Balanced Reader" },
+    low: { type: "Calm Observer", emoji: "💜", tagline: "น้องมั่นคงไม่ว่าอะไรจะเกิดขึ้น", wow: "น้องคือ \"หิน\" ที่คุณพึ่งพาได้ — ไม่หวั่นไหวง่าย", description: "น้องไม่ค่อยได้รับผลกระทบจากอารมณ์คุณ ซึ่งอาจเป็นข้อดีในบางสถานการณ์", scienceSecret: "อาจมี SLC6A4 variant ที่ทำให้มี emotional stability สูง", funFact: "🦮 หมานำทาง, หมาบำบัด มักถูกเลือกจากลักษณะนี้", actionToday: ["🧘‍♀️ ใช้น้องเป็น grounding buddy เมื่อเครียด", "🎯 ชื่นชมความมั่นคงของน้อง"], hook: "น้องอาจมี Chill Factor สูงมาก — ลอง Test 11!", traits: ["Emotional Anchor", "Steady Presence", "Unshakeable"], rarity: "💜 30% — Calm Soul" },
+    veryLow: { type: "Zen Master", emoji: "🤍", tagline: "น้องอยู่ในโลกของตัวเอง", wow: "น้องมีความสงบภายในที่หาได้ยาก — ไม่ถูกกระทบจากอารมณ์รอบข้าง", description: "น้องไม่ได้ไม่รักคุณ แต่มีวิธีแสดงความรักที่ต่างออกไป", scienceSecret: "บางสายพันธุ์ถูกเพาะพันธุ์มาเพื่อทำงานอิสระ ไม่ต้องอ่านอารมณ์คน", funFact: "🐕‍🦺 หมาล่าสัตว์มักมีลักษณะนี้ — โฟกัสที่งานไม่ใช่อารมณ์", actionToday: ["🎾 สื่อสารผ่านการเล่นแทนอารมณ์", "🍖 ใช้อาหารและกิจกรรมเป็น bonding"], hook: "ลองดู Primal Instinct ใน Test 12!", traits: ["Inner Peace", "Self-Contained", "Task-Oriented"], rarity: "🤍 15% — Zen State" }
+  },
+  // T3: 6th Sense (BOND)
+  3: {
+    high: { type: "Psychic Pup", emoji: "🔮", tagline: "น้องรู้ก่อนที่คุณจะบอก", wow: "น้องมี Intuition ระดับสูงผิดปกติ — สังเกตสิ่งที่คนอื่นพลาด", description: "น้องดูเหมือนรู้ว่าคุณจะกลับบ้านก่อนได้ยินเสียง หรือรู้ว่าคุณไม่สบาย", scienceSecret: "ยีน DRD4 variant อาจเกี่ยวข้องกับการรับรู้สิ่งเร้าที่ละเอียดอ่อน", funFact: "🔬 มีรายงานว่าหมาสามารถดมกลิ่นมะเร็งได้แม่นยำถึง 97%", actionToday: ["🕐 สังเกตว่าน้องรู้ตัวก่อนคุณกลับบ้านกี่นาที", "📝 จดบันทึกพฤติกรรม \"รู้ล่วงหน้า\" ของน้อง"], hook: "น้อง Psychic มักมี Memory Bank ดีเยี่ยม — Test 8!", traits: ["Intuitive", "Hyper-Aware", "Precognitive"], rarity: "🔮 10% — Rare Gift" },
+    medium: { type: "Intuition Guide", emoji: "✨", tagline: "น้องมีสัญชาตญาณที่ดี", wow: "น้องสังเกตเห็นรูปแบบและรายละเอียดที่คนอื่นพลาด", description: "น้องจะรู้สึกเมื่อมีอะไรผิดปกติ แม้คุณจะไม่ได้บอก", scienceSecret: "หมาใช้ประสาทสัมผัสหลายอย่างรวมกันในการประเมินสถานการณ์", funFact: "👃 หมามีตัวรับกลิ่นมากกว่าคน 40 เท่า!", actionToday: ["🎯 ฝึกให้น้องหาของซ่อน เพื่อพัฒนาประสาทสัมผัส", "🧩 เล่น puzzle toys กับน้อง"], hook: "ลองทดสอบ Problem Solver ใน Test 7!", traits: ["Pattern Recognition", "Alert", "Observant"], rarity: "✨ 35% — Good Instincts" },
+    low: { type: "Grounded Soul", emoji: "🌿", tagline: "น้องอยู่กับปัจจุบันเสมอ", wow: "น้องไม่ overthink — มีความสุขกับสิ่งที่เห็นตรงหน้า", description: "น้องไม่ค่อยสังเกตสิ่งที่ยังไม่เกิดขึ้น แต่ enjoy ทุกช่วงเวลา", scienceSecret: "น้องอาจมีระดับ Dopamine ที่สมดุล ไม่ต้องหา stimulation ตลอด", funFact: "🧘 หมาแบบนี้มักเป็น therapy dog ที่ดี เพราะสงบและ stable", actionToday: ["🌸 ชื่นชมความสงบของน้อง", "🎈 เล่นเกมง่ายๆ ที่ไม่ต้องคิดมาก"], hook: "น้องอาจมี Chill Factor สูง — Test 11!", traits: ["Present-Focused", "Content", "Peaceful"], rarity: "🌿 35% — Peaceful Mind" },
+    veryLow: { type: "Present Mind", emoji: "🪨", tagline: "น้องอยู่กับตรงนี้ ตรงนี้เท่านั้น", wow: "น้องมีความสามารถอยู่กับปัจจุบันที่คนส่วนใหญ่ทำไม่ได้", description: "น้องไม่สนใจอดีตหรืออนาคต — มีความสุขกับตอนนี้", scienceSecret: "อาจเป็นลักษณะที่ถูกเพาะพันธุ์มาเพื่อความมั่นคงทางอารมณ์", funFact: "🐶 หมาประเภทนี้มักไม่ค่อย anxiety หรือ stressed", actionToday: ["😊 เรียนรู้การอยู่กับปัจจุบันจากน้อง", "🍖 ให้รางวัลน้องบ่อยๆ"], hook: "ดูว่าน้องมี Brave Heart แค่ไหนใน Test 10!", traits: ["Mindful", "Stress-Free", "Simple Joy"], rarity: "🪨 20% — Zen Master" }
+  },
+  // T4: Food Soul (DRIVE) — Swipe Quiz
+  4: {
+    high: { type: "Food Champion", emoji: "🏆", tagline: "น้องคือนักกินตัวยง", wow: "น้องมี Food Drive ระดับสูงมาก — ใช้อาหารในการฝึกได้ผลเยี่ยม!", description: "น้องตื่นเต้นกับอาหารทุกครั้ง ไม่ว่าจะอิ่มแค่ไหน", scienceSecret: "ยีน MC4R อาจทำให้น้องรู้สึกหิวบ่อยกว่าปกติ", funFact: "🔬 งานวิจัยพบว่า Labrador มี gene mutation ที่ทำให้หิวตลอด", actionToday: ["🍖 ใช้อาหารเป็น training reward ได้ผลดีมาก", "⚖️ ระวังน้ำหนัก! แบ่งอาหารเป็นมื้อเล็กๆ"], hook: "น้อง Food Champion มักมี Energy สูงด้วย — Test 6!", traits: ["Food Motivated", "Easy to Train", "Enthusiastic Eater"], rarity: "🏆 25% — Food Lover" },
+    medium: { type: "Selective Soul", emoji: "🍽️", tagline: "น้องรู้จักเลือกกิน", wow: "น้องมี taste ที่ดี — ไม่กินทุกอย่างที่เห็น", description: "น้องจะกินเมื่อหิวจริง และเลือกอาหารที่ชอบ", scienceSecret: "น้องมี satiety signals ที่ทำงานดี — รู้ตัวเมื่ออิ่ม", funFact: "🐕 หมาบางตัวมี taste receptors สำหรับหวาน-เค็มต่างกัน", actionToday: ["🎯 หาอาหารที่น้องชอบจริงๆ เพื่อใช้ใน training", "🥗 ลองอาหารใหม่ๆ ให้น้องได้เลือก"], hook: "ดู Play DNA ว่าน้องชอบเล่นแบบไหน — Test 5!", traits: ["Discerning Palate", "Healthy Appetite", "Quality Over Quantity"], rarity: "🍽️ 35% — Balanced Eater" },
+    low: { type: "Protein Hunter", emoji: "🥩", tagline: "น้องชอบเนื้อมากกว่าอย่างอื่น", wow: "น้องมีความชอบที่ชัดเจน — รู้ว่าตัวเองต้องการอะไร", description: "น้องอาจไม่สนใจ treats ทั่วไป แต่จะตื่นเต้นกับเนื้อจริง", scienceSecret: "หมามี taste receptors สำหรับ amino acids มากกว่าคน", funFact: "🐺 บรรพบุรุษหมาป่ากินเนื้อเป็นหลัก — ยังอยู่ใน DNA", actionToday: ["🥩 ลอง freeze-dried meat เป็น high-value treat", "🦴 ให้กระดูกแทะ (ที่ปลอดภัย) เป็นรางวัล"], hook: "น้องอาจมี Primal Instinct สูง — Test 12!", traits: ["Carnivore Heart", "Picky But Passionate", "Knows What It Wants"], rarity: "🥩 25% — Meat Lover" },
+    veryLow: { type: "Little Grazer", emoji: "🌱", tagline: "น้องกินน้อยแต่มีความสุข", wow: "น้องไม่ถูกขับเคลื่อนด้วยอาหาร — หายากในโลกหมา!", description: "น้องกินเมื่อจำเป็น ไม่ได้ตื่นเต้นกับอาหารมาก", scienceSecret: "น้องอาจมี metabolism ที่ต่ำ หรือ satiety signals ที่แรง", funFact: "🐶 หมาบางสายพันธุ์ เช่น Basenji กินน้อยตามธรรมชาติ", actionToday: ["🎾 ใช้ของเล่นแทนอาหารเป็น reward", "❤️ ใช้ affection เป็น reinforcement"], hook: "ดูว่าอะไรขับเคลื่อนน้อง — Play DNA Test 5!", traits: ["Not Food Driven", "Needs Other Motivators", "Light Eater"], rarity: "🌱 15% — Rare Grazer" }
+  },
+  // T5: Play DNA (DRIVE)
+  5: {
+    high: { type: "Play Legend", emoji: "🎯", tagline: "น้องคือนักเล่นระดับตำนาน", wow: "น้องมี Play Drive ที่สูงมาก — พลังงานไม่มีหมด!", description: "น้องพร้อมเล่นตลอดเวลา ไม่ว่าจะเหนื่อยแค่ไหน", scienceSecret: "ยีน DRD2 variant ทำให้น้องได้ Dopamine จากการเล่นมากกว่าปกติ", funFact: "🎾 หมาที่เล่นบ่อยมีอายุยืนกว่าหมาที่ไม่ค่อยเล่นถึง 2 ปี", actionToday: ["⚽ เล่นกับน้องอย่างน้อย 30 นาทีต่อวัน", "🧩 หา puzzle toys มาให้น้องเล่น"], hook: "น้อง Play Legend มักมี Energy Core สูงด้วย — Test 6!", traits: ["Endless Energy", "Play Obsessed", "Joy Machine"], rarity: "🎯 20% — Play Master" },
+    medium: { type: "Fun Seeker", emoji: "🎾", tagline: "น้องรักการเล่นแต่รู้จักพัก", wow: "น้องมี balance ที่ดีระหว่างเล่นและพัก", description: "น้องชอบเล่นเป็นช่วงๆ แล้วก็พักผ่อน", scienceSecret: "น้องมี arousal regulation ที่ดี — รู้จักปรับระดับพลังงาน", funFact: "🐕 หมาที่เล่นสมดุลมักมี stress level ต่ำกว่า", actionToday: ["🎈 เล่น 15-20 นาที แล้วให้พัก", "🦴 สลับระหว่าง active play กับ calm activities"], hook: "ดู Focus Mode ว่าน้องจดจ่อได้นานแค่ไหน — Test 9!", traits: ["Balanced Play", "Knows When to Rest", "Adaptable"], rarity: "🎾 40% — Balanced Player" },
+    low: { type: "Chill Player", emoji: "🎈", tagline: "น้องเล่นเบาๆ สบายๆ", wow: "น้องไม่ต้องการ stimulation มาก — มีความสุขง่าย", description: "น้องชอบเล่นช้าๆ หรือนอนเล่นมากกว่าวิ่ง", scienceSecret: "น้องอาจมี Dopamine baseline ที่สูง ไม่ต้องหา stimulation เพิ่ม", funFact: "🛋️ หมาบางสายพันธุ์ถูกเพาะพันธุ์มาเป็นเพื่อน ไม่ใช่นักกีฬา", actionToday: ["🧸 หาของเล่นนุ่มๆ ให้น้องนอนเล่น", "🌿 เดินเล่นช้าๆ แทนวิ่ง"], hook: "ดู Chill Factor ใน Test 11 ว่าน้องชิลแค่ไหน!", traits: ["Low-Key Fun", "Gentle Play", "Content Soul"], rarity: "🎈 25% — Gentle Player" },
+    veryLow: { type: "Zen Companion", emoji: "☁️", tagline: "น้องมีความสุขแค่อยู่ด้วยกัน", wow: "น้องไม่ต้องการเล่นเพื่อมีความสุข — แค่อยู่ด้วยก็พอ", description: "น้องชอบนั่งข้างๆ มากกว่าเล่น เป็นเพื่อนที่สงบ", scienceSecret: "น้องได้ Oxytocin จากการอยู่ใกล้คุณ ไม่ต้องเล่น", funFact: "🐶 หมาบางตัวเป็น \"velcro dogs\" ที่ต้องการแค่ความใกล้ชิด", actionToday: ["💕 ใช้เวลานั่งด้วยกันเงียบๆ", "🎵 เปิดเพลงเบาๆ ฟังด้วยกัน"], hook: "ลองดู Stare Code ว่าน้องสื่อสารผ่านตาไหม — Test 1!", traits: ["Cuddle Master", "Presence > Play", "Calm Companion"], rarity: "☁️ 15% — Zen Master" }
+  },
+  // T6: Energy Core (DRIVE)
+  6: {
+    high: { type: "Turbo Dog", emoji: "⚡", tagline: "น้องคือพายุลูกน้อย", wow: "น้องมี Energy Level ที่สูงมาก — ต้องการ exercise มาก!", description: "น้องมีพลังงานไม่จำกัด ต้องออกกำลังกายทุกวัน", scienceSecret: "ยีน PPARGC1A variant ทำให้กล้ามเนื้อน้องมี endurance สูง", funFact: "🏃 Border Collie สามารถวิ่งได้ 50+ กม./วัน!", actionToday: ["🏃‍♂️ พาน้องวิ่งหรือเล่น 1-2 ชั่วโมง/วัน", "🧠 เพิ่ม mental exercise ด้วย puzzle"], hook: "น้อง Turbo มักเป็น Problem Solver ด้วย — Test 7!", traits: ["Endless Stamina", "Needs Exercise", "High Drive"], rarity: "⚡ 15% — Turbo Mode" },
+    medium: { type: "Active Paw", emoji: "🔥", tagline: "น้องชอบเคลื่อนไหวแต่รู้จักพัก", wow: "น้องมี energy ที่ดี แต่ไม่ถึงกับต้องออกกำลังตลอด", description: "น้องต้องการ exercise ปานกลาง เดินเล่นวันละ 30-60 นาที", scienceSecret: "น้องมี energy management ที่ดี — รู้จักเก็บพลังงาน", funFact: "🐕 หมาส่วนใหญ่ต้องการ exercise 30-60 นาที/วัน", actionToday: ["🦮 เดินเล่น 30-45 นาที เช้า-เย็น", "🎾 เล่น fetch เป็นครั้งคราว"], hook: "ดู Focus Mode ใน Test 9!", traits: ["Good Energy", "Adaptable Activity", "Balanced"], rarity: "🔥 40% — Active Life" },
+    low: { type: "Balanced Buddy", emoji: "🌤️", tagline: "น้องพอดีๆ ไม่มากไม่น้อย", wow: "น้องมี energy ที่เหมาะกับชีวิต condo/apartment", description: "น้องไม่ต้องการ exercise มาก เดินเล่นวันละ 20-30 นาทีก็พอ", scienceSecret: "น้องมี metabolism ที่สมดุล ไม่กิน calories เยอะ", funFact: "🏠 หมา energy ต่ำเหมาะกับชีวิตในเมืองมาก", actionToday: ["🌸 เดินเล่นเบาๆ 20-30 นาที", "🛋️ อย่ารู้สึกผิดที่น้องนอนเยอะ"], hook: "น้องอาจมี Chill Factor สูง — Test 11!", traits: ["Easy to Manage", "Apartment Friendly", "Calm Energy"], rarity: "🌤️ 30% — Balanced Life" },
+    veryLow: { type: "Couch Potato", emoji: "🛋️", tagline: "น้องรักโซฟามากที่สุด", wow: "น้องคือเพื่อนที่ perfect สำหรับคนชอบอยู่บ้าน", description: "น้องไม่ค่อยต้องการ exercise แค่เดินเล่นสั้นๆ ก็พอ", scienceSecret: "บางสายพันธุ์ เช่น Bulldog, Basset Hound ถูกเพาะพันธุ์มาให้ใช้ energy น้อย", funFact: "🛋️ Bulldog นอนวันละ 12-14 ชั่วโมง!", actionToday: ["🚶 เดินสั้นๆ 10-15 นาที ก็พอ", "💕 Cuddle time สำคัญกว่า exercise"], hook: "ดูว่าน้องมี Brave Heart ไหม — Test 10!", traits: ["Low Maintenance", "Perfect Couch Buddy", "Sleep Master"], rarity: "🛋️ 15% — Couch King" }
+  },
+  // T7: Problem Solver (MIND)
+  7: {
+    high: { type: "Genius Pup", emoji: "🧠", tagline: "น้องฉลาดจนน่าตกใจ", wow: "น้องอยู่ใน TOP 10% ของหมาทั้งหมดในด้านความฉลาด!", description: "น้องแก้ปัญหาได้เร็ว เรียนรู้ tricks ใหม่ภายในไม่กี่ครั้ง", scienceSecret: "ยีน KIBRA variant เกี่ยวข้องกับ working memory และ problem solving", funFact: "🧩 Border Collie ชื่อ Chaser จำชื่อของเล่นได้ 1,022 ชิ้น!", actionToday: ["🧩 ให้ puzzle feeders ทุกมื้อ", "🎓 สอน trick ใหม่ทุกสัปดาห์"], hook: "น้อง Genius มักมี Memory Bank ดีเยี่ยม — Test 8!", traits: ["Quick Learner", "Puzzle Master", "Innovative Thinker"], rarity: "🧠 10% — Genius Level" },
+    medium: { type: "Smart Cookie", emoji: "💡", tagline: "น้องฉลาดในแบบของตัวเอง", wow: "น้องมีความสามารถในการเรียนรู้ที่ดี", description: "น้องเรียนรู้ได้ดีเมื่อมีแรงจูงใจที่ถูกต้อง", scienceSecret: "น้องใช้ทั้ง observational learning และ trial & error", funFact: "🐕 หมาเรียนรู้จากการดูคนมากกว่าที่คิด!", actionToday: ["🍖 หา high-value treat สำหรับ training", "📚 ฝึก 5-10 นาที/วัน consistently"], hook: "ดู Focus Mode ว่าน้องจดจ่อได้นานไหม — Test 9!", traits: ["Good Learner", "Motivated", "Practical Intelligence"], rarity: "💡 40% — Smart Average" },
+    low: { type: "Practical Mind", emoji: "🔧", tagline: "น้องฉลาดในเรื่องที่สำคัญ", wow: "น้องไม่ได้โง่ — แค่เลือกที่จะสนใจเรื่องที่เกี่ยวข้องกับตัวเอง", description: "น้องเรียนรู้ช้ากว่า แต่จำได้นานเมื่อเรียนแล้ว", scienceSecret: "น้องอาจเป็น \"selective learner\" เลือกเรียนเรื่องที่มีประโยชน์", funFact: "🐕 หมาบางตัว \"แกล้งโง่\" เพื่อหลีกเลี่ยงงาน!", actionToday: ["⏰ ฝึกซ้ำบ่อยๆ ด้วย positive reinforcement", "🎯 เน้น 1-2 commands ที่สำคัญ"], hook: "ดูว่าน้องมี Brave Heart ไหม — Test 10!", traits: ["Selective Learning", "Long Memory", "Practical Skills"], rarity: "🔧 35% — Practical Learner" },
+    veryLow: { type: "Simple Joy", emoji: "🌈", tagline: "น้องมีความสุขง่ายๆ ไม่ต้องคิดเยอะ", wow: "น้องไม่ต้องการ mental stimulation มาก — มีความสุขกับสิ่งง่ายๆ", description: "น้องอาจไม่เก่ง tricks แต่เป็นเพื่อนที่น่ารักมาก", scienceSecret: "บางสายพันธุ์ถูกเพาะพันธุ์มาเป็นเพื่อน ไม่ใช่นักคิด", funFact: "🐶 ความฉลาดไม่ได้หมายถึงความรัก — หมา \"โง่\" ก็รักเจ้าของเท่าๆ กัน", actionToday: ["💕 ชื่นชมความเรียบง่ายของน้อง", "🎈 เล่นเกมง่ายๆ ที่ไม่ต้องคิดมาก"], hook: "ดู Empathy Radar ว่าน้องอ่านอารมณ์เก่งไหม — Test 2!", traits: ["Simple Pleasures", "Loyal Heart", "Easy Going"], rarity: "🌈 15% — Pure Heart" }
+  },
+  // T8: Memory Bank (MIND)
+  8: {
+    high: { type: "Memory Master", emoji: "💾", tagline: "น้องจำได้ทุกอย่าง", wow: "น้องมี long-term memory ที่ยอดเยี่ยม!", description: "น้องจำคน สถานที่ และ routines ได้แม่นยำมาก", scienceSecret: "ยีน BDNF variant เกี่ยวข้องกับ memory consolidation", funFact: "🧠 หมาจำหน้าเจ้าของได้แม้ไม่เจอกันหลายปี!", actionToday: ["🎓 สอนชื่อของเล่นแต่ละชิ้น", "📍 พาไปที่เดิมๆ ให้น้องจำ landmarks"], hook: "น้อง Memory Master มักเป็น Genius Pup ด้วย — ลอง Test 7!", traits: ["Excellent Recall", "Recognizes Patterns", "Never Forgets"], rarity: "💾 15% — Memory Expert" },
+    medium: { type: "Quick Learner", emoji: "📚", tagline: "น้องเรียนรู้และจำได้ดี", wow: "น้องมี memory ในระดับปกติ — ซึ่งก็ดีมากแล้ว!", description: "น้องจำ routines และ commands หลักๆ ได้ดี", scienceSecret: "น้องใช้ repetition และ association ในการจำ", funFact: "🐕 หมาจำได้ดีเมื่อ learning มาพร้อมกับ positive emotions", actionToday: ["🔄 ทบทวน commands เก่าเป็นระยะ", "🍖 ใช้ treats ช่วยสร้าง positive memory"], hook: "ดู Focus Mode ใน Test 9!", traits: ["Good Memory", "Learns Well", "Retains Commands"], rarity: "📚 40% — Normal Memory" },
+    low: { type: "Routine Lover", emoji: "📝", tagline: "น้องชอบความคุ้นเคย", wow: "น้องจำได้ดีเมื่อเป็น routine ที่ทำซ้ำๆ", description: "น้องอาจลืม tricks ที่ไม่ได้ฝึกบ่อย แต่จำ routine ได้แม่น", scienceSecret: "น้องอาจพึ่ง procedural memory มากกว่า declarative memory", funFact: "🔁 หมาชอบ routine เพราะทำให้รู้สึกปลอดภัย", actionToday: ["📅 สร้าง daily routine ที่ consistent", "🔄 ทบทวน commands ทุกวัน"], hook: "ดู Chill Factor ใน Test 11!", traits: ["Routine-Dependent", "Needs Consistency", "Procedural Memory"], rarity: "📝 30% — Routine Based" },
+    veryLow: { type: "Present Moment", emoji: "🌸", tagline: "น้องอยู่กับปัจจุบัน", wow: "น้องไม่ยึดติดกับอดีต — มีความสุขกับตอนนี้", description: "น้องอาจลืมไวหน่อย แต่ก็หมายความว่าไม่ค่อยจำเรื่องไม่ดีด้วย", scienceSecret: "น้องอาจมี hippocampus ที่ทำงานต่างจากหมาทั่วไป", funFact: "🐶 หมาที่ลืมเร็วมักไม่ค่อย traumatized จากประสบการณ์ร้าย", actionToday: ["⏰ ฝึกสั้นๆ บ่อยๆ แทนฝึกนานๆ ครั้งเดียว", "💕 อย่าคาดหวังว่าน้องจะจำ tricks ซับซ้อน"], hook: "ลอง 6th Sense ใน Test 3!", traits: ["Lives Now", "Quick to Forgive", "Short Memory"], rarity: "🌸 15% — Present Focused" }
+  },
+  // T9: Focus Mode (MIND)
+  9: {
+    high: { type: "Laser Focus", emoji: "🎯", tagline: "น้องจดจ่อได้อย่างน่าทึ่ง", wow: "น้องมี attention span ที่ยาวกว่าหมาทั่วไปมาก!", description: "น้องสามารถโฟกัสที่งานหนึ่งได้นานโดยไม่วอกแวก", scienceSecret: "ยีน COMT variant อาจทำให้ Dopamine ในสมองส่วนหน้าสมดุล", funFact: "🎯 หมา working line เช่น Border Collie มี focus สูงมาก", actionToday: ["🧩 ให้งานที่ท้าทายและต้องใช้ focus", "🎓 ฝึก advanced obedience"], hook: "น้อง Laser Focus มักเป็น Genius Pup — Test 7!", traits: ["Intense Concentration", "Task-Oriented", "Undistractible"], rarity: "🎯 15% — Laser Sharp" },
+    medium: { type: "Task Switcher", emoji: "🔄", tagline: "น้องปรับตัวได้ดี", wow: "น้องมี focus ในระดับปกติ — สมดุลดี", description: "น้องจดจ่อได้พอสมควร แต่ก็วอกแวกบ้างเป็นธรรมชาติ", scienceSecret: "น้องมี arousal regulation ที่ดี — ปรับระดับ attention ได้", funFact: "🐕 หมาส่วนใหญ่มี attention span ประมาณ 5-10 นาที", actionToday: ["⏰ ฝึก 5-10 นาทีต่อ session", "🎈 เปลี่ยน activities บ่อยๆ"], hook: "ดู Memory Bank ใน Test 8!", traits: ["Adaptable Focus", "Normal Attention", "Flexible"], rarity: "🔄 40% — Balanced Focus" },
+    low: { type: "Multi-Tasker", emoji: "🌀", tagline: "น้องสนใจทุกอย่างรอบตัว", wow: "น้องมี awareness กว้าง — ไม่พลาดอะไรเลย!", description: "น้องวอกแวกง่าย แต่ก็หมายความว่า alert ต่อสิ่งแวดล้อมดี", scienceSecret: "น้องอาจมี novelty-seeking trait ที่สูง", funFact: "🐕‍🦺 หมาล่าสัตว์มักมี attention กว้าง เพื่อจับการเคลื่อนไหว", actionToday: ["🏠 ฝึกในที่เงียบๆ ก่อน แล้วค่อยเพิ่ม distractions", "🍖 ใช้ high-value treats เพื่อดึง attention"], hook: "น้องอาจมี 6th Sense ดี — Test 3!", traits: ["Wide Awareness", "Easily Distracted", "Alert to Environment"], rarity: "🌀 30% — Broad Awareness" },
+    veryLow: { type: "Free Spirit", emoji: "🦋", tagline: "น้องเป็นอิสระไม่ถูกจำกัด", wow: "น้องมีจิตวิญญาณเสรี — ไม่ชอบถูกบังคับ", description: "น้องวอกแวกง่ายมาก แต่ก็มีเสน่ห์ในความเป็นตัวเอง", scienceSecret: "น้องอาจมี DRD4 variant ที่ทำให้ต้องการ novelty สูง", funFact: "🐶 หมาบางตัวถูกเพาะพันธุ์มาให้ทำงานอิสระ ไม่ใช่รอคำสั่ง", actionToday: ["⏰ ฝึกสั้นมากๆ 1-2 นาที", "🎈 ทำให้ training เป็นเกมสนุก"], hook: "ดู Wild Instinct ใน Test 12!", traits: ["Independent Mind", "Cannot Be Boxed", "Natural Explorer"], rarity: "🦋 15% — Free Soul" }
+  },
+  // T10: Brave Heart (NERVE)
+  10: {
+    high: { type: "Fearless Hero", emoji: "🦁", tagline: "น้องกล้าหาญไม่กลัวอะไร", wow: "น้องมีความกล้าในระดับที่หาได้ยาก!", description: "น้องเผชิญสถานการณ์ใหม่ด้วยความมั่นใจ ไม่หวั่นไหว", scienceSecret: "ยีน CRHR1 variant อาจทำให้ stress response ต่ำกว่าปกติ", funFact: "🦸 หมากู้ภัยต้องผ่านการคัดเลือกจากความกล้า", actionToday: ["🌍 พาน้องไปสำรวจที่ใหม่ๆ", "🎉 expose น้องกับประสบการณ์หลากหลาย"], hook: "ดู Wild Instinct ใน Test 12!", traits: ["No Fear", "Confident Explorer", "Brave Soul"], rarity: "🦁 15% — Fearless" },
+    medium: { type: "Brave Heart", emoji: "🐯", tagline: "น้องกล้าในระดับที่ดี", wow: "น้องมีความกล้าที่สมดุล — ระวังแต่ไม่กลัวเกินไป", description: "น้องอาจลังเลแป๊บนึงก่อนสถานการณ์ใหม่ แต่ก็ปรับตัวได้", scienceSecret: "น้องมี stress response ที่เหมาะสม — adaptive fear", funFact: "🐕 ความกลัวที่พอดีช่วยให้หมาปลอดภัย", actionToday: ["👍 ชมน้องเมื่อเผชิญสิ่งใหม่", "🐢 ค่อยๆ expose ทีละน้อย"], hook: "ดู Chill Factor ใน Test 11!", traits: ["Healthy Caution", "Adaptable", "Balanced Fear"], rarity: "🐯 40% — Balanced Brave" },
+    low: { type: "Cautious Soul", emoji: "🐱", tagline: "น้องระวังตัวเป็นพิเศษ", wow: "น้องฉลาดพอที่จะระวังตัว — survival instinct ดี", description: "น้องกลัวสิ่งใหม่ในตอนแรก แต่จะค่อยๆ ปรับตัว", scienceSecret: "น้องอาจมี amygdala ที่ sensitive กว่าปกติ", funFact: "🐕 หมาที่ระวังตัวมักอายุยืนกว่าในธรรมชาติ", actionToday: ["🏠 ให้ safe space ที่น้องหนีไปได้", "🍖 ใช้ treats สร้าง positive association"], hook: "ดู Chill Factor ว่าน้อง stressed ง่ายไหม — Test 11!", traits: ["Smart Caution", "Needs Time", "Safety First"], rarity: "🐱 30% — Cautious Mind" },
+    veryLow: { type: "Safety First", emoji: "🐰", tagline: "น้องต้องการความปลอดภัย", wow: "น้องต้องการ environment ที่ปลอดภัยและคาดเดาได้", description: "น้องกลัวง่ายและต้องการเวลาในการปรับตัว", scienceSecret: "น้องอาจมี genetic predisposition ต่อ anxiety", funFact: "🏠 หมาที่กลัวง่ายตอบสนองดีมากกับ positive reinforcement", actionToday: ["🧘 สร้าง routine ที่คาดเดาได้", "💊 ปรึกษาสัตวแพทย์เรื่อง anxiety management"], hook: "ดู Empathy Radar — น้องอาจรับอารมณ์คุณมาด้วย Test 2!", traits: ["Needs Security", "Sensitive Soul", "Requires Patience"], rarity: "🐰 15% — Sensitive Heart" }
+  },
+  // T11: Chill Factor (NERVE)
+  11: {
+    high: { type: "Buddha Dog", emoji: "🧘", tagline: "น้องสงบเหมือนพระ", wow: "น้องมี stress tolerance ที่สูงมาก — หาได้ยาก!", description: "น้องไม่ค่อย stressed ไม่ว่าอะไรจะเกิดขึ้น", scienceSecret: "ยีน SLC6A3 variant อาจทำให้ Dopamine regulation ดีเยี่ยม", funFact: "🧘 หมา therapy มักถูกเลือกจากความสงบ", actionToday: ["💕 ขอบคุณน้องที่เป็น calming presence", "🏥 น้องอาจเหมาะเป็น therapy dog!"], hook: "น้อง Buddha มักมี 6th Sense ดี — Test 3!", traits: ["Unshakeable Calm", "Stress-Proof", "Inner Peace"], rarity: "🧘 10% — Zen Master" },
+    medium: { type: "Chill Master", emoji: "😎", tagline: "น้องชิลในระดับที่ดี", wow: "น้องมี stress management ที่ดี — ปรับตัวได้", description: "น้อง stressed บ้างในบางสถานการณ์ แต่ recover เร็ว", scienceSecret: "น้องมี cortisol regulation ที่ดี — stress ขึ้นแต่ก็ลงเร็ว", funFact: "🐕 หมาส่วนใหญ่ recover จาก stress ภายใน 15-30 นาที", actionToday: ["🎵 เปิดเพลง calming เมื่อน้อง stressed", "🏠 มี safe space ให้น้องได้พัก"], hook: "ดู Brave Heart ใน Test 10!", traits: ["Good Recovery", "Adaptable", "Balanced Stress"], rarity: "😎 40% — Chill Vibes" },
+    low: { type: "Alert Guard", emoji: "👀", tagline: "น้องตื่นตัวเสมอ", wow: "น้องมี alertness สูง — ไม่พลาดอะไร!", description: "น้อง stressed ง่ายกว่าปกติ ต้องการ environment ที่สงบ", scienceSecret: "น้องอาจมี cortisol baseline ที่สูงกว่าปกติ", funFact: "🐕‍🦺 หมาที่ alert สูงมักเป็น guard dog ที่ดี", actionToday: ["🏠 ลด stimulation ใน environment", "🧘 ฝึก relaxation exercises"], hook: "ดู Empathy Radar — น้องอาจรับอารมณ์มา Test 2!", traits: ["High Alert", "Sensitive", "Needs Calm Environment"], rarity: "👀 35% — Alert Soul" },
+    veryLow: { type: "Worry Warrior", emoji: "😰", tagline: "น้องกังวลง่าย", wow: "น้องต้องการการดูแลพิเศษในเรื่อง anxiety", description: "น้อง stressed ง่ายและ recover ช้า ต้องการ routine ที่ชัดเจน", scienceSecret: "น้องอาจมี genetic predisposition ต่อ anxiety disorders", funFact: "🐕 1 ใน 4 ของหมามี separation anxiety ในระดับใดระดับหนึ่ง", actionToday: ["💊 ปรึกษาสัตวแพทย์เรื่อง anxiety management", "🧸 ให้ของเล่นที่ calming เช่น snuffle mat"], hook: "ดู Empathy Radar — น้องอาจรับอารมณ์คุณ Test 2!", traits: ["Needs Support", "Anxiety Prone", "Requires Patience"], rarity: "😰 15% — Sensitive Soul" }
+  },
+  // T12: Primal Instinct (WILD)
+  12: {
+    high: { type: "Wolf Soul", emoji: "🐺", tagline: "จิตวิญญาณหมาป่ายังอยู่", wow: "น้องมี primal instincts ที่แรงมาก — ใกล้ชิดบรรพบุรุษ!", description: "น้องมีสัญชาตญาณล่า เฝ้า และสำรวจที่แรงกล้า", scienceSecret: "ยีน WBSCR17 อาจยังคงรูปแบบเดียวกับหมาป่า", funFact: "🐺 DNA หมาต่างจากหมาป่าแค่ 0.2%!", actionToday: ["🦴 ให้กิจกรรมที่ใช้ instincts เช่น nose work", "🏃 ให้ outlet สำหรับพลังงาน"], hook: "ดู Food Soul — น้องอาจเป็น carnivore ตัวจริง Test 4!", traits: ["Strong Instincts", "Prey Drive", "Pack Mentality"], rarity: "🐺 10% — Wolf Heart" },
+    medium: { type: "Wild Heart", emoji: "🦊", tagline: "น้องมีความ wild ซ่อนอยู่", wow: "น้องมี instincts ที่ดี แต่ก็เชื่องพอ", description: "น้องมี hunting และ guarding instincts แต่ควบคุมได้", scienceSecret: "น้องมี balance ระหว่าง wild และ domesticated genes", funFact: "🦊 หมาถูก domesticate มาประมาณ 15,000-40,000 ปี", actionToday: ["🎾 เล่น fetch หรือ tug ให้ outlet สำหรับ prey drive", "🧩 ให้ puzzle toys กระตุ้น hunting instincts"], hook: "ดู Energy Core ใน Test 6!", traits: ["Balanced Instincts", "Controlled Wild", "Adaptable"], rarity: "🦊 30% — Balanced Wild" },
+    low: { type: "Domesticated", emoji: "🐕", tagline: "น้องเป็นหมาบ้านตัวจริง", wow: "น้องถูกเลี้ยงมาให้เป็นเพื่อนที่สมบูรณ์แบบ", description: "น้องไม่ค่อยมี hunting หรือ guarding instincts — เป็นมิตรกับทุกคน", scienceSecret: "น้องมี genes ที่ถูก select มาสำหรับความเชื่อง", funFact: "🐕 Cavalier King Charles Spaniel ถูกเพาะพันธุ์มาเพื่อนั่งตัก!", actionToday: ["💕 ชื่นชมความอ่อนโยนของน้อง", "🐕‍🦺 น้องเหมาะกับบ้านที่มีเด็กหรือสัตว์อื่น"], hook: "ดู Empathy Radar ว่าน้องอ่านอารมณ์เก่งไหม Test 2!", traits: ["Gentle Soul", "People-Oriented", "Easy Going"], rarity: "🐕 40% — True Companion" },
+    veryLow: { type: "Pure Companion", emoji: "🧸", tagline: "น้องคือเพื่อนที่บริสุทธิ์", wow: "น้องถูกเลี้ยงมาเพื่อความรักล้วนๆ", description: "น้องไม่มี aggression หรือ hunting drive — รักทุกคน", scienceSecret: "น้องมี oxytocin genes ที่แรงมาก — bonding สูง", funFact: "🧸 หมาบางสายพันธุ์ไม่เคยถูกใช้ทำงาน — เป็นเพื่อนอย่างเดียว", actionToday: ["🤗 cuddle น้องเยอะๆ", "👨‍👩‍👧‍👦 น้องเหมาะกับทุก lifestyle"], hook: "ดู Stare Code — น้องคงสบตาเก่งมาก Test 1!", traits: ["Pure Love", "Zero Aggression", "Ultimate Companion"], rarity: "🧸 20% — Pure Heart" }
+  }
+};
+
 export default function MhaStoryApp() {
-  const [screen, setScreen] = useState('landing');
-  const [currentTopic, setCurrentTopic] = useState(null);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState([]);
-  const [showLeadGate, setShowLeadGate] = useState(false);
-  const [leadInfo, setLeadInfo] = useState({ name: '', contact: '', dogName: '', breed: '', email: '' });
-  const [swipeDir, setSwipeDir] = useState(null);
-  const [revealStep, setRevealStep] = useState(0);
-  const [completedTopics, setCompletedTopics] = useState({});
-  const [leadStep, setLeadStep] = useState(0);
-  const [selectedBreed, setSelectedBreed] = useState('');
-  const [customBreed, setCustomBreed] = useState('');
-  const [selectedBadge, setSelectedBadge] = useState(null);
-  const [showBadgeModal, setShowBadgeModal] = useState(false);
-
-  // ─── Auth / Supabase States ──────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════════════════
+  const [screen, setScreen] = useState("landing");
   const [user, setUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authError, setAuthError] = useState('');
-  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
-  const [authEmail, setAuthEmail] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
-  const [authStep, setAuthStep] = useState(1); // 1=credentials, 2=dog profile
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveMsg, setSaveMsg] = useState('');
-  // ─────────────────────────────────────────────────────────────────────────
-
-  // Refs for LINE browser compatibility (prevents losing focus on every keystroke)
+  const [authMode, setAuthMode] = useState("login"); // login | register
+  const [authStep, setAuthStep] = useState(1);
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [saveMsg, setSaveMsg] = useState("");
+  
+  // Lead Info (Dog Profile)
+  const [leadInfo, setLeadInfo] = useState({
+    dogName: "",
+    breed: "",
+    customBreed: "",
+    age: "",
+    ownerName: ""
+  });
+  
+  // Quiz State
+  const [currentTopic, setCurrentTopic] = useState(null);
+  const [currentQ, setCurrentQ] = useState(0);
+  const [answers, setAnswers] = useState([]);
+  const [showResult, setShowResult] = useState(false);
+  const [quizScore, setQuizScore] = useState(0);
+  
+  // Completed Topics & Results
+  const [completedTopics, setCompletedTopics] = useState({});
+  
+  // Refs for LINE Browser fix
   const dogNameRef = useRef(null);
+  const customBreedRef = useRef(null);
   const ownerNameRef = useRef(null);
   const emailRef = useRef(null);
-  const phoneRef = useRef(null);
-  const customBreedRef = useRef(null);
+  const passwordRef = useRef(null);
 
-  // Popular dog breeds
-  const dogBreeds = [
-    'ปอมเมอเรเนียน', 'ชิวาวา', 'พุดเดิ้ล', 'โกลเด้น รีทรีฟเวอร์', 
-    'ลาบราดอร์', 'ชิบะ อินุ', 'บีเกิ้ล', 'บูลด็อก', 
-    'ไซบีเรียน ฮัสกี้', 'คอร์กี้', 'ชิสุ', 'มอลทีส',
-    'แจ็ค รัสเซล', 'บางแก้ว', 'ไทยหลังอาน', 'พันทาง/มิกซ์',
-    'อื่นๆ (กรอกเอง)'
-  ];
-  const [viewingResult, setViewingResult] = useState(null);
 
-  // All Topics Data
-  const allTopics = [
-    { 
-      id: 1, 
-      name: 'The Stare Code', 
-      emoji: '👁️', 
-      dimension: 'BOND',
-      dimensionEmoji: '💛',
-      color: '#FF6B6B',
-      island: 1,
-      shortDesc: 'ค้นพบความลึกของสายตาที่เชื่อมโยงหัวใจ',
-      fullDesc: 'ทดสอบว่าน้องหมาของคุณใช้การสบตาในการสื่อสารความรักและความผูกพันอย่างไร การสบตากระตุ้น Oxytocin ทั้งในคนและน้องหมา!',
-      scienceFact: 'การสบตากับน้องหมาช่วยกระตุ้นการหลั่ง Oxytocin เหมือนกับความรักระหว่างแม่กับลูก',
-      reference: 'Nagasawa et al. (2015), Science',
-      duration: '3 นาที',
-      questions: 10
-    },
-    { 
-      id: 2, 
-      name: 'Empathy DNA', 
-      emoji: '😢', 
-      dimension: 'BOND',
-      dimensionEmoji: '💛',
-      color: '#FF8E53',
-      island: 1,
-      shortDesc: 'น้องหมารับรู้อารมณ์คุณได้แค่ไหน?',
-      fullDesc: 'ทดสอบว่าน้องหมาของคุณมีความสามารถในการอ่านและตอบสนองต่ออารมณ์ของคุณอย่างไร',
-      scienceFact: 'สุนัขสามารถแยกแยะสีหน้าที่แสดงอารมณ์ของมนุษย์ได้ และตอบสนองด้วยความเห็นอกเห็นใจ',
-      reference: 'Custance & Mayer (2012), Animal Cognition',
-      duration: '3 นาที',
-      questions: 10
-    },
-    { 
-      id: 3, 
-      name: '6th Sense Test', 
-      emoji: '🚪', 
-      dimension: 'MIND',
-      dimensionEmoji: '🧠',
-      color: '#4ECDC4',
-      island: 1,
-      shortDesc: 'น้องหมารู้ล่วงหน้าก่อนคุณทำอะไร?',
-      fullDesc: 'ทดสอบความสามารถในการคาดการณ์และอ่าน pattern พฤติกรรมของเจ้าของ',
-      scienceFact: 'สุนัขสามารถจดจำ routine และคาดการณ์เหตุการณ์ล่วงหน้าได้อย่างแม่นยำ',
-      reference: 'Sheldrake & Smart (2000), Journal of Scientific Exploration',
-      duration: '3 นาที',
-      questions: 10
-    },
-    { 
-      id: 4, 
-      name: 'Food Blueprint', 
-      emoji: '🍖', 
-      dimension: 'DRIVE',
-      dimensionEmoji: '⚡',
-      color: '#FF6B6B',
-      island: 2,
-      shortDesc: 'อาหารมีอิทธิพลต่อน้องหมาแค่ไหน?',
-      fullDesc: 'ทดสอบ Food Motivation และพฤติกรรมการกินที่บ่งบอกถึง DRIVE dimension',
-      scienceFact: 'ยีน POMC มีผลต่อความอยากอาหารและน้ำหนักในสุนัข โดยเฉพาะ Labrador Retriever',
-      reference: 'Raffan et al. (2016), Cell Metabolism',
-      duration: '3 นาที',
-      questions: 10
-    },
-    { 
-      id: 5, 
-      name: 'Play Personality', 
-      emoji: '🎾', 
-      dimension: 'DRIVE',
-      dimensionEmoji: '⚡',
-      color: '#FFD93D',
-      island: 2,
-      shortDesc: 'น้องหมาชอบเล่นแบบไหน?',
-      fullDesc: 'ค้นพบสไตล์การเล่นที่บอกถึงพลังงานและแรงขับของน้องหมา',
-      scienceFact: 'รูปแบบการเล่นเชื่อมโยงกับ attachment style และความสัมพันธ์กับเจ้าของ',
-      reference: 'Rooney & Bradshaw (2003), Applied Animal Behaviour Science',
-      duration: '3 นาที',
-      questions: 10
-    },
-    { 
-      id: 6, 
-      name: 'IQ Signal', 
-      emoji: '🧠', 
-      dimension: 'MIND',
-      dimensionEmoji: '🧠',
-      color: '#4ECDC4',
-      island: 2,
-      shortDesc: 'น้องหมาฉลาดแค่ไหน?',
-      fullDesc: 'ทดสอบความสามารถในการเรียนรู้และแก้ปัญหาของน้องหมา',
-      scienceFact: 'สุนัขมี social cognition skills ที่ใกล้เคียงกับเด็กมนุษย์',
-      reference: 'Hare & Tomasello (2005), Trends in Cognitive Sciences',
-      duration: '3 นาที',
-      questions: 10
-    },
-    { 
-      id: 7, 
-      name: 'Mind Reader', 
-      emoji: '🔮', 
-      dimension: 'MIND',
-      dimensionEmoji: '🧠',
-      color: '#9B59B6',
-      island: 3,
-      shortDesc: 'น้องหมาอ่านใจคุณได้ไหม?',
-      fullDesc: 'ทดสอบความสามารถในการอ่านสัญญาณและเจตนาของเจ้าของ',
-      scienceFact: 'สุนัขสามารถติดตามสายตาและเข้าใจการชี้ของมนุษย์ ต่างจากหมาป่า',
-      reference: 'Miklosi et al. (2003), Current Biology',
-      duration: '3 นาที',
-      questions: 10
-    },
-    { 
-      id: 8, 
-      name: 'Secret Language', 
-      emoji: '🗣️', 
-      dimension: 'MIND',
-      dimensionEmoji: '🧠',
-      color: '#3498DB',
-      island: 3,
-      shortDesc: 'น้องหมาสื่อสารกับคุณยังไง?',
-      fullDesc: 'ค้นพบภาษาลับที่น้องหมาใช้สื่อสารกับคุณ',
-      scienceFact: 'เสียงเห่าของสุนัขมีความหมายเฉพาะตัวและแตกต่างกันในแต่ละสถานการณ์',
-      reference: 'Yin & McCowan (2004), Animal Behaviour',
-      duration: '3 นาที',
-      questions: 10
-    },
-    { 
-      id: 9, 
-      name: 'Nerve Map', 
-      emoji: '⚡', 
-      dimension: 'NERVE',
-      dimensionEmoji: '🛡️',
-      color: '#E74C3C',
-      island: 3,
-      shortDesc: 'น้องหมากลัวอะไรบ้าง?',
-      fullDesc: 'ทำแผนที่ความกลัวและความวิตกกังวลของน้องหมา',
-      scienceFact: 'ความกลัวเสียงดังเป็นปัญหาพฤติกรรมที่พบบ่อยในสุนัข',
-      reference: 'Shull et al. (2021), Frontiers in Veterinary Science',
-      duration: '3 นาที',
-      questions: 10
-    },
-    { 
-      id: 10, 
-      name: 'Alone Index', 
-      emoji: '🧳', 
-      dimension: 'NERVE',
-      dimensionEmoji: '🛡️',
-      color: '#E67E22',
-      island: 4,
-      shortDesc: 'น้องหมาอยู่คนเดียวได้ไหม?',
-      fullDesc: 'วัดระดับ Separation Anxiety ของน้องหมา',
-      scienceFact: 'Separation anxiety พบได้ใน 20-40% ของสุนัขทั่วโลก',
-      reference: 'Flannigan & Dodman (2001), JAVMA',
-      duration: '3 นาที',
-      questions: 10
-    },
-    { 
-      id: 11, 
-      name: 'Pack Code', 
-      emoji: '🐺', 
-      dimension: 'WILD',
-      dimensionEmoji: '🌍',
-      color: '#2ECC71',
-      island: 4,
-      shortDesc: 'น้องหมาเข้าฝูงยังไง?',
-      fullDesc: 'ทดสอบพฤติกรรมทางสังคมกับสุนัขตัวอื่น',
-      scienceFact: 'สุนัขมี social hierarchy และพฤติกรรมฝูงที่สืบทอดมาจากหมาป่า',
-      reference: 'Barrera et al. (2011), Behavioural Processes',
-      duration: '3 นาที',
-      questions: 10
-    },
-    { 
-      id: 12, 
-      name: 'Wild Signal', 
-      emoji: '🌿', 
-      dimension: 'WILD',
-      dimensionEmoji: '🌍',
-      color: '#1ABC9C',
-      island: 4,
-      shortDesc: 'สัญชาตญาณดั้งเดิมของน้องหมา',
-      fullDesc: 'ค้นพบพฤติกรรมสัญชาตญาณที่ซ่อนอยู่ใน DNA',
-      scienceFact: 'พฤติกรรมเช่น การวนก่อนนอน และการขุดดิน เป็นสัญชาตญาณดั้งเดิม',
-      reference: 'Coppinger & Coppinger (2001), Dogs: A Startling New Understanding',
-      duration: '3 นาที',
-      questions: 10
-    }
-  ];
-
-  const islands = [
-    { id: 1, name: 'Heart Bond', emoji: '🐾', color: '#FFD93D', topics: [1, 2, 3] },
-    { id: 2, name: 'Energy Drive', emoji: '🐾', color: '#FF6B6B', topics: [4, 5, 6] },
-    { id: 3, name: 'Mind Power', emoji: '🐾', color: '#4ECDC4', topics: [7, 8, 9] },
-    { id: 4, name: 'Wild Instinct', emoji: '🐾', color: '#9B59B6', topics: [10, 11, 12] }
-  ];
-
-  // Dimension Info for popup
-  const dimensionInfo = [
-    { 
-      name: 'BOND', 
-      emoji: '💛', 
-      color: '#FFD93D', 
-      gene: 'OXTR — Oxytocin Receptor',
-      desc: 'วัดระดับความผูกพันและความรักที่น้องหมามีต่อเจ้าของ ยีน OXTR ควบคุมการหลั่ง Oxytocin (ฮอร์โมนแห่งความรัก) ซึ่งส่งผลต่อความใกล้ชิดและความไว้วางใจ'
-    },
-    { 
-      name: 'DRIVE', 
-      emoji: '⚡', 
-      color: '#FF6B6B', 
-      gene: 'POMC — Energy & Appetite',
-      desc: 'วัดระดับพลังงาน แรงจูงใจ และความกระตือรือร้น ยีน POMC มีผลต่อความอยากอาหารและระดับพลังงาน พบว่ามีความแตกต่างชัดเจนในสายพันธุ์ต่างๆ'
-    },
-    { 
-      name: 'MIND', 
-      emoji: '🧠', 
-      color: '#4ECDC4', 
-      gene: 'WBSCR17 — Social Cognition',
-      desc: 'วัดความฉลาดทางสังคมและความสามารถในการอ่านใจคน ยีน WBSCR17 เกี่ยวข้องกับความสามารถในการเข้าใจท่าทางและอารมณ์ของมนุษย์'
-    },
-    { 
-      name: 'NERVE', 
-      emoji: '🛡️', 
-      color: '#9B59B6', 
-      gene: 'SLC6A4 — Serotonin Transporter',
-      desc: 'วัดความมั่นคงทางอารมณ์และการรับมือกับความเครียด ยีน SLC6A4 ควบคุมระดับ Serotonin ซึ่งส่งผลต่อความวิตกกังวลและความกลัว'
-    },
-    { 
-      name: 'WILD', 
-      emoji: '🌍', 
-      color: '#2ECC71', 
-      gene: 'DRD4 — Dopamine Receptor',
-      desc: 'วัดระดับสัญชาตญาณดั้งเดิมและความรักในการผจญภัย ยีน DRD4 เกี่ยวข้องกับพฤติกรรมแสวงหาสิ่งใหม่และความอยากรู้อยากเห็น'
-    }
-  ];
-
-  const [showDimensionPopup, setShowDimensionPopup] = useState(false);
-
-  // Quiz questions for Topic 1
-  // Quiz Questions for all 12 Topics
-  const topicQuestions = {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // QUIZ QUESTIONS — 12 Topics × 10 Questions Each
+  // ═══════════════════════════════════════════════════════════════════════════
+  const quizQuestions = {
+    // T1: The Stare Code
     1: [
-      { q: 'น้องจ้องคุณระหว่างที่คุณกินข้าวไหม?', emoji: '🍽️' },
-      { q: 'น้องตามคุณเข้าทุกห้องในบ้านไหม?', emoji: '🚪' },
-      { q: 'น้อง slow-blink เวลาสบตาคุณไหม?', emoji: '😌' },
-      { q: 'น้องมองหน้าคุณก่อนจะทำอะไรไหม?', emoji: '🤔' },
-      { q: 'น้องสบตาคุณนานกว่า 5 วินาทีได้ไหม?', emoji: '⏱️' },
-      { q: 'น้องมองตาเวลาคุณพูดกับมันไหม?', emoji: '💬' },
-      { q: 'น้องหันมามองเมื่อคุณเรียกชื่อไหม?', emoji: '📢' },
-      { q: 'น้องจ้องตาคุณเวลาต้องการอะไรไหม?', emoji: '🙏' },
-      { q: 'น้องรักษา eye contact ได้โดยไม่กลัวไหม?', emoji: '💪' },
-      { q: 'น้องมองตาคุณตอนเล่นด้วยกันไหม?', emoji: '🎾' }
+      { q: "เมื่อคุณกลับถึงบ้าน น้องหมาสบตาคุณแบบไหน?", a: ["จ้องมองไม่กระพริบ เหมือนรอคุณมานาน", "มองแป๊บแล้ววิ่งมาหา", "มองผ่านๆ แล้วก็ทำธุระต่อ", "ไม่ค่อยสนใจ ยังนอนต่อ"], s: [4, 3, 2, 1] },
+      { q: "ระหว่างกินข้าว น้องหมาทำอะไร?", a: ["นั่งจ้องหน้าคุณตลอดมื้อ", "มองเป็นระยะๆ หวังได้กิน", "ไม่ค่อยสนใจ เล่นของตัวเอง", "นอนหลับ"], s: [4, 3, 2, 1] },
+      { q: "เวลาคุณเศร้า น้องหมาทำยังไง?", a: ["มานั่งข้างๆ สบตา เหมือนเข้าใจ", "มาเลีย/แนบตัว", "มาเล่นด้วยเหมือนจะให้หายเศร้า", "ไม่ค่อยสังเกต"], s: [4, 3, 2, 1] },
+      { q: "ขณะเดินเล่น น้องหมาหันมามองคุณบ่อยแค่ไหน?", a: ["ทุกๆ ไม่กี่ก้าว check in ตลอด", "เป็นระยะๆ", "นานๆ ครั้ง", "แทบไม่หันมาเลย สนใจกลิ่น"], s: [4, 3, 2, 1] },
+      { q: "เมื่อคุณพูดชื่อน้อง ปฏิกิริยาเป็นยังไง?", a: ["หูตั้ง สบตาทันที", "หันมามอง", "แค่กระดิกหู", "ไม่ค่อยตอบสนอง"], s: [4, 3, 2, 1] },
+      { q: "ถ้าคุณร้องไห้ น้องหมาจะ?", a: ["มาเลียน้ำตา สบตาเป็นห่วง", "มานั่งใกล้ๆ แนบตัว", "มาดมๆ แล้วก็ไป", "ไม่ค่อยสังเกต"], s: [4, 3, 2, 1] },
+      { q: "เวลาคุณกำลังจะออกจากบ้าน น้องทำยังไง?", a: ["จ้องมองทุกการเคลื่อนไหว ตาเศร้า", "ตามไปที่ประตู", "มองดูบ้าง", "ไม่ค่อยสนใจ"], s: [4, 3, 2, 1] },
+      { q: "ขณะนั่งทำงาน/ดูทีวี น้องอยู่ไหน?", a: ["นั่งมองหน้าคุณ", "นอนข้างๆ แอบมองเป็นระยะ", "อยู่ในห้องเดียวกันแต่ทำอย่างอื่น", "ไปอยู่ที่อื่น"], s: [4, 3, 2, 1] },
+      { q: "เมื่อมีคนแปลกหน้ามาบ้าน น้องทำยังไง?", a: ["มองคุณก่อนเพื่อดู reaction", "วิ่งไปหาคนแปลกหน้าเลย", "เห่า/ระวังตัว", "ไม่ค่อยสนใจ"], s: [4, 3, 2, 1] },
+      { q: "ก่อนนอน น้องหมาทำอะไรสุดท้าย?", a: ["สบตาคุณแล้วค่อยหลับ", "มานอนข้างๆ", "ไปนอนที่ของตัวเอง", "นอนไปแล้วก่อนหน้านั้น"], s: [4, 3, 2, 1] }
     ],
+    // T2: Empathy Radar
     2: [
-      { q: 'น้องเข้ามาหาเวลาคุณร้องไห้ไหม?', emoji: '😢' },
-      { q: 'น้องรู้สึกเมื่อคุณเครียดไหม?', emoji: '😰' },
-      { q: 'น้องเลียหน้าคุณเวลาคุณเศร้าไหม?', emoji: '👅' },
-      { q: 'น้องนั่งข้างๆ เวลาคุณไม่สบายไหม?', emoji: '🤒' },
-      { q: 'น้องหงอยตามเวลาคุณไม่มีความสุขไหม?', emoji: '😔' },
-      { q: 'น้องตื่นเต้นเวลาคุณกลับบ้านไหม?', emoji: '🏠' },
-      { q: 'น้องสังเกตเห็นเมื่อคุณโกรธไหม?', emoji: '😠' },
-      { q: 'น้องพยายามปลอบคุณเวลามีเรื่องไหม?', emoji: '🤗' },
-      { q: 'น้องรู้ก่อนว่าคุณกำลังจะออกจากบ้านไหม?', emoji: '🚶' },
-      { q: 'น้องดูเหมือนเข้าใจน้ำเสียงของคุณไหม?', emoji: '🎵' }
+      { q: "เมื่อคุณเครียด น้องหมาทำยังไง?", a: ["รู้ทันที มาปลอบ", "สังเกตได้ถ้าเครียดมาก", "ไม่ค่อยสังเกต", "ไม่สนใจ"], s: [4, 3, 2, 1] },
+      { q: "ถ้าคุณโกรธ (ไม่ใช่โกรธน้อง) น้องทำยังไง?", a: ["หลบๆ เหมือนรู้ว่าอารมณ์ไม่ดี", "มานั่งใกล้ๆ ปลอบ", "ทำเหมือนปกติ", "ไม่สังเกตเลย"], s: [4, 3, 2, 1] },
+      { q: "เมื่อคุณดีใจ/ตื่นเต้น น้องตอบสนองไหม?", a: ["ตื่นเต้นตามทันที กระดิกหาง", "มาร่วมวงด้วย", "ดูสนใจบ้าง", "เฉยๆ"], s: [4, 3, 2, 1] },
+      { q: "ถ้าคุณไม่สบาย น้องทำยังไง?", a: ["นอนเฝ้าไม่ไปไหน", "มาเช็คเป็นระยะๆ", "ทำเหมือนปกติ", "ไม่สังเกต"], s: [4, 3, 2, 1] },
+      { q: "เมื่อมีการทะเลาะในบ้าน น้องทำยังไง?", a: ["วิ่งหนี/หลบ ดูเครียด", "พยายามแทรกกลาง", "นั่งดู ไม่เข้าใจ", "ไม่สนใจ"], s: [4, 3, 2, 1] },
+      { q: "ถ้าคุณร้องเพลงดีใจ น้องทำยังไง?", a: ["หอน/ร้องตาม ร่วมวง", "กระดิกหาง ดูสนใจ", "มองงงๆ", "เฉยๆ"], s: [4, 3, 2, 1] },
+      { q: "เมื่อคุณนั่งสมาธิ/สงบ น้องทำยังไง?", a: ["นั่ง/นอนเงียบๆ ด้วย", "มานั่งใกล้แต่ไม่รบกวน", "มาเล่นด้วย", "ไม่สนใจ ทำอย่างอื่น"], s: [4, 3, 2, 1] },
+      { q: "ถ้าคุณหัวเราะลั่น น้องทำยังไง?", a: ["ตื่นเต้นตาม กระดิกหาง", "มาดูว่าเกิดอะไรขึ้น", "มองบ้าง", "ไม่สนใจ"], s: [4, 3, 2, 1] },
+      { q: "เมื่อคุณกังวล (เช่น ก่อนสอบ/ประชุม) น้องรู้ไหม?", a: ["มาแนบตัว ดูเข้าใจ", "อยู่ใกล้กว่าปกติ", "ทำเหมือนปกติ", "ไม่สังเกต"], s: [4, 3, 2, 1] },
+      { q: "ถ้าคุณดีใจมากๆ (เช่น ได้เลื่อนขั้น) น้องฉลองด้วยไหม?", a: ["วิ่งวนกระดิกหาง ตื่นเต้นมาก", "มาร่วมวง", "ดูสนใจบ้าง", "เฉยๆ"], s: [4, 3, 2, 1] }
     ],
+    // T3: 6th Sense
     3: [
-      { q: 'น้องรู้ก่อนว่ามีคนจะมาถึงบ้านไหม?', emoji: '🚗' },
-      { q: 'น้องตื่นก่อนนาฬิกาปลุกคุณไหม?', emoji: '⏰' },
-      { q: 'น้องรู้ว่าจะไปหาหมอก่อนถึงคลินิกไหม?', emoji: '🏥' },
-      { q: 'น้องรู้สึกถึงแผ่นดินไหวก่อนคุณไหม?', emoji: '🌍' },
-      { q: 'น้องรู้ว่าใครเป็นมิตรหรือศัตรูไหม?', emoji: '🤝' },
-      { q: 'น้องทำนายพายุหรือฝนได้ไหม?', emoji: '🌧️' },
-      { q: 'น้องรู้เวลาที่คุณกำลังจะกลับบ้านไหม?', emoji: '🏠' },
-      { q: 'น้องมีปฏิกิริยากับพลังงานของคนไหม?', emoji: '✨' },
-      { q: 'น้องเคยเตือนคุณเรื่องอันตรายไหม?', emoji: '⚠️' },
-      { q: 'น้องรู้สึกได้ถึงอารมณ์คนรอบข้างไหม?', emoji: '👥' }
+      { q: "น้องหมาเคย 'รู้ล่วงหน้า' ว่าคุณจะกลับบ้านไหม?", a: ["ใช่ ไปรอที่ประตูก่อนได้ยินเสียง", "บางครั้ง", "ไม่ค่อย", "ไม่เคยสังเกต"], s: [4, 3, 2, 1] },
+      { q: "น้องเคยเห่าก่อนโทรศัพท์ดังไหม?", a: ["ใช่ บ่อยมาก", "บางครั้ง", "แทบไม่เคย", "ไม่เคย"], s: [4, 3, 2, 1] },
+      { q: "น้องรู้ตัวไหมเมื่อคุณกำลังจะพาไปหาหมอ?", a: ["รู้ทันที ไม่ต้องบอก", "เริ่มรู้ตอนจับสายจูง", "รู้ตอนขึ้นรถ", "ไม่รู้จนถึงคลินิก"], s: [4, 3, 2, 1] },
+      { q: "น้องเคยแสดงพฤติกรรมแปลกๆ ก่อนเหตุการณ์ไม่ดีไหม?", a: ["ใช่ หลายครั้ง", "เคย 1-2 ครั้ง", "ไม่แน่ใจ", "ไม่เคย"], s: [4, 3, 2, 1] },
+      { q: "น้องรู้ไหมว่าคุณกำลังจะออกไปข้างนอก (ก่อนแต่งตัว)?", a: ["รู้ตั้งแต่คิด", "รู้ตอนเริ่มแต่งตัว", "รู้ตอนหยิบกุญแจ", "รู้ตอนเปิดประตู"], s: [4, 3, 2, 1] },
+      { q: "น้องเคย 'รู้' ว่าใครกำลังจะมาเยี่ยมไหม?", a: ["ใช่ ตื่นเต้นก่อนกดออด", "บางครั้ง", "ไม่ค่อย", "ไม่เคย"], s: [4, 3, 2, 1] },
+      { q: "น้องตอบสนองกับเสียงที่คุณยังไม่ได้ยินไหม?", a: ["บ่อยมาก หูไวกว่า", "บางครั้ง", "แทบไม่เคย", "ไม่เคย"], s: [4, 3, 2, 1] },
+      { q: "น้องเคยหลีกเลี่ยงคน/สถานที่บางอย่างโดยไม่มีเหตุผลชัดเจนไหม?", a: ["ใช่ หลายครั้ง และถูกด้วย", "เคยบ้าง", "ไม่ค่อย", "ไม่เคย"], s: [4, 3, 2, 1] },
+      { q: "น้องรู้ไหมว่าใครในบ้านกำลังป่วย?", a: ["รู้ ไปเฝ้าคนนั้น", "ดูเหมือนรู้บ้าง", "ไม่แน่ใจ", "ไม่รู้"], s: [4, 3, 2, 1] },
+      { q: "น้องเคยปลุกคุณก่อนนาฬิกาปลุกดังไหม?", a: ["ใช่ บ่อย ตรงเวลามาก", "บางครั้ง", "แทบไม่เคย", "ไม่เคย"], s: [4, 3, 2, 1] }
     ],
+    // T4-T12 จะเพิ่มใน Part ถัดไป
+  };
+
+  // Swipe Quiz Questions (T4: Food Soul)
+  const swipeQuestions = {
     4: [
-      { q: 'น้องตื่นเต้นมากเวลาเห็นอาหารไหม?', emoji: '🤩' },
-      { q: 'น้องกินอาหารหมดจานเสมอไหม?', emoji: '🍽️' },
-      { q: 'น้องขออาหารจากโต๊ะคุณไหม?', emoji: '🙏' },
-      { q: 'น้องจำได้ว่าขนมอยู่ที่ไหนไหม?', emoji: '🧠' },
-      { q: 'น้องกินเร็วมากไหม?', emoji: '⚡' },
-      { q: 'น้องยอมทำ trick เพื่อขนมไหม?', emoji: '🎪' },
-      { q: 'น้องเลือกกินเฉพาะบางอย่างไหม?', emoji: '🤔' },
-      { q: 'น้องรู้เวลาอาหารแม่นยำไหม?', emoji: '⏰' },
-      { q: 'น้องแย่งอาหารจากน้องหมาตัวอื่นไหม?', emoji: '🐕' },
-      { q: 'น้องมีอาหารโปรดที่ชัดเจนไหม?', emoji: '❤️' }
-    ],
-    5: [
-      { q: 'น้องเล่นได้นานโดยไม่เหนื่อยไหม?', emoji: '💪' },
-      { q: 'น้องชอบเล่นดึงเชือกไหม?', emoji: '🪢' },
-      { q: 'น้องเอาของเล่นมาให้คุณเล่นด้วยไหม?', emoji: '🧸' },
-      { q: 'น้องชอบไล่จับมากกว่าถูกไล่ไหม?', emoji: '🏃' },
-      { q: 'น้องเล่นหยาบ (rough play) ไหม?', emoji: '🤼' },
-      { q: 'น้องรู้จักหยุดเวลาเหนื่อยไหม?', emoji: '😮‍💨' },
-      { q: 'น้องชอบเล่นกับน้องหมาตัวอื่นไหม?', emoji: '🐕‍🦺' },
-      { q: 'น้องเล่นของเล่นคนเดียวได้ไหม?', emoji: '🎯' },
-      { q: 'น้องตื่นเต้นเมื่อเห็นสายจูงไหม?', emoji: '🦮' },
-      { q: 'น้องมีของเล่นชิ้นโปรดไหม?', emoji: '🌟' }
-    ],
-    6: [
-      { q: 'น้องเรียนรู้คำสั่งใหม่เร็วไหม?', emoji: '📚' },
-      { q: 'น้องแก้ปัญหาเพื่อเอาขนมได้ไหม?', emoji: '🧩' },
-      { q: 'น้องเปิดประตูหรือลิ้นชักเป็นไหม?', emoji: '🚪' },
-      { q: 'น้องจำชื่อของเล่นแต่ละชิ้นได้ไหม?', emoji: '🏷️' },
-      { q: 'น้องรู้จักหลอกล่อคุณไหม?', emoji: '🎭' },
-      { q: 'น้องเข้าใจท่าทางมือของคุณไหม?', emoji: '👆' },
-      { q: 'น้องรู้จักใช้จังหวะในการขออะไรไหม?', emoji: '⏱️' },
-      { q: 'น้องจำเส้นทางเดินได้ไหม?', emoji: '🗺️' },
-      { q: 'น้องแยกแยะคนในครอบครัวได้ไหม?', emoji: '👨‍👩‍👧' },
-      { q: 'น้องเรียนรู้จากการดูน้องหมาตัวอื่นไหม?', emoji: '👀' }
-    ],
-    7: [
-      { q: 'น้องรู้ก่อนว่าคุณจะพาไปเดินเล่นไหม?', emoji: '🚶' },
-      { q: 'น้องเดาได้ว่าคุณคิดอะไรอยู่ไหม?', emoji: '💭' },
-      { q: 'น้องรู้ว่าคุณจะหยิบอะไรให้ไหม?', emoji: '🎁' },
-      { q: 'น้องตอบสนองกับความคิดคุณไหม?', emoji: '🧠' },
-      { q: 'น้องรู้ว่าวันนี้เป็นวันหยุดไหม?', emoji: '📅' },
-      { q: 'น้องรู้สึกได้ถึงแผนการของคุณไหม?', emoji: '📋' },
-      { q: 'น้องเตรียมตัวก่อนที่คุณจะบอกไหม?', emoji: '🎯' },
-      { q: 'น้องรู้ว่าคุณกำลังจะโทรหาใครไหม?', emoji: '📱' },
-      { q: 'น้องคาดเดาการเคลื่อนไหวของคุณได้ไหม?', emoji: '🔄' },
-      { q: 'น้องรู้ก่อนว่าจะมีแขกมาไหม?', emoji: '🔔' }
-    ],
-    8: [
-      { q: 'น้องมีเสียงเห่าหลายแบบไหม?', emoji: '🔊' },
-      { q: 'น้องใช้ตาสื่อสารกับคุณไหม?', emoji: '👀' },
-      { q: 'น้องมีท่าทางเฉพาะเวลาต้องการอะไรไหม?', emoji: '🙋' },
-      { q: 'น้องกระดิกหางต่างกันตามอารมณ์ไหม?', emoji: '🐕' },
-      { q: 'น้องส่งเสียงครางเวลาอยากได้อะไรไหม?', emoji: '😩' },
-      { q: 'น้องมีคำศัพท์ที่เข้าใจหลายคำไหม?', emoji: '📖' },
-      { q: 'น้องใช้อุ้งเท้าแตะคุณเพื่อสื่อสารไหม?', emoji: '🐾' },
-      { q: 'น้องแสดงสีหน้าชัดเจนไหม?', emoji: '😀' },
-      { q: 'น้องเข้าใจน้ำเสียงต่างๆ ของคุณไหม?', emoji: '🎵' },
-      { q: 'คุณรู้สึกว่าคุยกับน้องได้ไหม?', emoji: '💬' }
-    ],
-    9: [
-      { q: 'น้องตกใจเสียงดังไหม?', emoji: '💥' },
-      { q: 'น้องกลัวพลุหรือฟ้าร้องไหม?', emoji: '🎆' },
-      { q: 'น้องสงบในสถานการณ์ใหม่ๆ ไหม?', emoji: '🆕' },
-      { q: 'น้องผ่อนคลายเมื่อมีคนแปลกหน้าไหม?', emoji: '👤' },
-      { q: 'น้องปรับตัวกับการเปลี่ยนแปลงได้เร็วไหม?', emoji: '🔄' },
-      { q: 'น้องกล้าเข้าหาสิ่งใหม่ๆ ไหม?', emoji: '🌟' },
-      { q: 'น้องนอนหลับสบายในที่แปลกไหม?', emoji: '😴' },
-      { q: 'น้องไม่หวาดกลัวเมื่อไปหาหมอไหม?', emoji: '🏥' },
-      { q: 'น้องเล่นกับเด็กได้อย่างใจเย็นไหม?', emoji: '👶' },
-      { q: 'น้องฟื้นตัวจากความกลัวได้เร็วไหม?', emoji: '⚡' }
-    ],
-    10: [
-      { q: 'น้องอยู่บ้านคนเดียวได้สบายไหม?', emoji: '🏠' },
-      { q: 'น้องร้องหรือหอนเมื่อคุณออกไปไหม?', emoji: '😭' },
-      { q: 'น้องทำลายของเมื่ออยู่คนเดียวไหม?', emoji: '💔' },
-      { q: 'น้องเครียดเมื่อคุณเตรียมออกจากบ้านไหม?', emoji: '😰' },
-      { q: 'น้องติดตามคุณไปทุกที่ในบ้านไหม?', emoji: '🚶' },
-      { q: 'น้องต้องนอนในห้องเดียวกับคุณไหม?', emoji: '🛏️' },
-      { q: 'น้องตื่นเต้นเกินเมื่อคุณกลับบ้านไหม?', emoji: '🎉' },
-      { q: 'น้องสงบลงได้เองเมื่ออยู่คนเดียวไหม?', emoji: '😌' },
-      { q: 'น้องเล่นของเล่นคนเดียวได้ไหม?', emoji: '🧸' },
-      { q: 'น้องนอนสบายเมื่อคุณไม่อยู่ห้องไหม?', emoji: '💤' }
-    ],
-    11: [
-      { q: 'น้องเป็นผู้นำในกลุ่มน้องหมาไหม?', emoji: '👑' },
-      { q: 'น้องยอมให้น้องหมาตัวอื่นนำไหม?', emoji: '🤝' },
-      { q: 'น้องปกป้องอาหารของตัวเองไหม?', emoji: '🍖' },
-      { q: 'น้องเข้ากับน้องหมาตัวใหม่ได้ง่ายไหม?', emoji: '🐕' },
-      { q: 'น้องมีลำดับชั้นกับน้องหมาในบ้านไหม?', emoji: '📊' },
-      { q: 'น้องแสดงอำนาจเหนือน้องหมาตัวอื่นไหม?', emoji: '💪' },
-      { q: 'น้องแบ่งปันของเล่นกับน้องหมาตัวอื่นไหม?', emoji: '🧸' },
-      { q: 'น้องเล่นตามกฎกับน้องหมาตัวอื่นไหม?', emoji: '📜' },
-      { q: 'น้องปกป้องครอบครัวจากน้องหมาแปลกหน้าไหม?', emoji: '🛡️' },
-      { q: 'น้องอยู่ในกลุ่มน้องหมาได้อย่างสงบไหม?', emoji: '☮️' }
-    ],
-    12: [
-      { q: 'น้องไล่จับสัตว์เล็กๆ ไหม?', emoji: '🐿️' },
-      { q: 'น้องขุดดินบ่อยไหม?', emoji: '🕳️' },
-      { q: 'น้องหอนเหมือนหมาป่าไหม?', emoji: '🌙' },
-      { q: 'น้องชอบดมกลิ่นทุกอย่างไหม?', emoji: '👃' },
-      { q: 'น้องตื่นตัวกับเสียงในธรรมชาติไหม?', emoji: '🌲' },
-      { q: 'น้องชอบเล่นน้ำหรือโคลนไหม?', emoji: '💦' },
-      { q: 'น้องเคี้ยวกิ่งไม้หรือของธรรมชาติไหม?', emoji: '🪵' },
-      { q: 'น้องมีสัญชาตญาณล่าเหยื่อสูงไหม?', emoji: '🎯' },
-      { q: 'น้องชอบอยู่กลางแจ้งมากกว่าในบ้านไหม?', emoji: '☀️' },
-      { q: 'น้องกลิ้งบนหญ้าหรือพื้นดินไหม?', emoji: '🌀' }
+      { item: "ไก่ต้ม", emoji: "🍗", desc: "โปรตีนคลาสสิค" },
+      { item: "ผักโขม", emoji: "🥬", desc: "ไฟเบอร์สูง" },
+      { item: "ตับไก่", emoji: "🫀", desc: "วิตามินเพียบ" },
+      { item: "แครอท", emoji: "🥕", desc: "เบต้าแคโรทีน" },
+      { item: "เนื้อวัว", emoji: "🥩", desc: "โปรตีนพรีเมียม" },
+      { item: "แอปเปิ้ล", emoji: "🍎", desc: "หวานธรรมชาติ" },
+      { item: "ปลาแซลมอน", emoji: "🍣", desc: "โอเมก้า 3" },
+      { item: "บลูเบอร์รี่", emoji: "🫐", desc: "แอนตี้ออกซิแดนท์" },
+      { item: "ไข่ต้ม", emoji: "🥚", desc: "โปรตีนครบ" },
+      { item: "ฟักทอง", emoji: "🎃", desc: "ไฟเบอร์ดี" }
     ]
   };
-  
-  // Get questions for current topic
-  const quizQuestions = currentTopic ? topicQuestions[currentTopic.id] || topicQuestions[1] : topicQuestions[1];
 
-  // Topic-specific personality configs
-  const topicPersonalityConfig = {
-    1: { name: 'The Stare Code', dimension: 'BOND', gene: 'OXTR', types: { high: 'Soul Gazer', medium: 'Heart Reader', low: 'Casual Connector', veryLow: 'Independent Spirit' }, emojis: { high: '🌟', medium: '💕', low: '🤝', veryLow: '🦊' } },
-    2: { name: 'Empathy DNA', dimension: 'BOND', gene: 'Mirror Neuron', types: { high: 'Emotion Sponge', medium: 'Comfort Buddy', low: 'Chill Observer', veryLow: 'Zen Master' }, emojis: { high: '🫂', medium: '🤗', low: '😎', veryLow: '🧘' } },
-    3: { name: '6th Sense', dimension: 'BOND', gene: 'Sensory Genes', types: { high: 'Psychic Pup', medium: 'Keen Observer', low: 'Easy Going', veryLow: 'Chill Dude' }, emojis: { high: '🔮', medium: '🦉', low: '😊', veryLow: '😴' } },
-    4: { name: 'Food Blueprint', dimension: 'DRIVE', gene: 'POMC', types: { high: 'Food Fanatic', medium: 'Balanced Eater', low: 'Picky Eater', veryLow: 'Food Skeptic' }, emojis: { high: '🤤', medium: '🍽️', low: '🤔', veryLow: '🙄' } },
-    5: { name: 'Play Personality', dimension: 'DRIVE', gene: 'DRD4', types: { high: 'Play Monster', medium: 'Active Player', low: 'Couch Potato', veryLow: 'Zen Sleeper' }, emojis: { high: '🎉', medium: '🐕', low: '🛋️', veryLow: '😴' } },
-    6: { name: 'IQ Signal', dimension: 'DRIVE', gene: 'Brain Dev', types: { high: 'Genius Pup', medium: 'Smart Cookie', low: 'Sweet Simpleton', veryLow: 'Lovable Goofball' }, emojis: { high: '🎓', medium: '🍪', low: '🥰', veryLow: '🤪' } },
-    7: { name: 'Mind Reader', dimension: 'MIND', gene: 'Visual Processing', types: { high: 'Telepathic', medium: 'Intuitive', low: 'Present Moment', veryLow: 'Surprise Lover' }, emojis: { high: '🧿', medium: '💫', low: '🌸', veryLow: '🎁' } },
-    8: { name: 'Secret Language', dimension: 'MIND', gene: 'Vocal Range', types: { high: 'Communicator', medium: 'Expressive', low: 'Silent Type', veryLow: 'Mystery Dog' }, emojis: { high: '📢', medium: '🎭', low: '🤫', veryLow: '🎭' } },
-    9: { name: 'Nerve Map', dimension: 'NERVE', gene: 'SLC6A4', types: { high: 'Fearless', medium: 'Balanced', low: 'Sensitive', veryLow: 'Anxious' }, emojis: { high: '🦸', medium: '⚖️', low: '🌸', veryLow: '😰' } },
-    10: { name: 'Alone Index', dimension: 'NERVE', gene: 'Attachment', types: { high: 'Independent', medium: 'Adaptable', low: 'Clingy', veryLow: 'Shadow' }, emojis: { high: '🦅', medium: '🔄', low: '🤗', veryLow: '🥺' } },
-    11: { name: 'Pack Code', dimension: 'WILD', gene: 'Social Hierarchy', types: { high: 'Alpha', medium: 'Team Player', low: 'Submissive', veryLow: 'Lone Wolf' }, emojis: { high: '👑', medium: '🤝', low: '🐾', veryLow: '🐺' } },
-    12: { name: 'Wild Signal', dimension: 'WILD', gene: 'Ancient DNA', types: { high: 'Wild Heart', medium: 'Nature Lover', low: 'City Dog', veryLow: 'Couch Companion' }, emojis: { high: '🐺', medium: '🌳', low: '🏙️', veryLow: '🛋️' } }
+  // Slider Quiz Questions (T5, T6, T9, T11)
+  const sliderQuestions = {
+    5: [
+      { q: "น้องตื่นเต้นแค่ไหนเมื่อเห็นลูกบอล?", min: "เฉยๆ", max: "บ้าเลย!" },
+      { q: "น้องเล่นได้นานแค่ไหนก่อนเหนื่อย?", min: "5 นาที", max: "ไม่มีหมด" },
+      { q: "น้องชวนคุณเล่นบ่อยแค่ไหน?", min: "ไม่เคย", max: "ตลอดเวลา" },
+      { q: "น้องตื่นเต้นกับของเล่นใหม่แค่ไหน?", min: "เฉยๆ", max: "บ้าคลั่ง" },
+      { q: "น้องเล่นกับหมาตัวอื่นยังไง?", min: "ไม่สนใจ", max: "แอคทีฟมาก" },
+      { q: "น้องชอบเกมไล่จับไหม?", min: "ไม่เลย", max: "ชอบมาก" },
+      { q: "น้องทำลายของเล่นเร็วแค่ไหน?", min: "ไม่เคย", max: "วันเดียวพัง" },
+      { q: "น้องเล่น tug-of-war แรงแค่ไหน?", min: "อ่อนๆ", max: "ดุเดือด" },
+      { q: "น้องต้องการ playtime ต่อวันเท่าไหร่?", min: "5 นาที", max: "2+ ชม." },
+      { q: "น้องมีพลังงานหลังเล่นยังไง?", min: "หมด", max: "ยังฟิต" }
+    ],
+    6: [
+      { q: "น้องต้องการออกกำลังกายต่อวันเท่าไหร่?", min: "แทบไม่ต้อง", max: "2+ ชม." },
+      { q: "น้องตื่นเช้าพร้อมพลังงานขนาดไหน?", min: "งัวเงีย", max: "พุ่งทันที" },
+      { q: "น้องเหนื่อยง่ายแค่ไหนตอนเดินเล่น?", min: "เร็วมาก", max: "ไม่เคยเหนื่อย" },
+      { q: "น้องนอนกลางวันบ่อยแค่ไหน?", min: "ตลอด", max: "ไม่เคย" },
+      { q: "น้อง hyperactive ตอนเย็นไหม?", min: "ไม่เลย", max: "บ้าเลย" },
+      { q: "น้องวิ่งแบบ 'zoomies' บ่อยแค่ไหน?", min: "ไม่เคย", max: "ทุกวัน" },
+      { q: "น้องต้องการกิจกรรมหลังกินข้าวไหม?", min: "นอนเลย", max: "พร้อมเล่น" },
+      { q: "น้องนิ่งอยู่กับที่ได้นานแค่ไหน?", min: "ไม่ได้เลย", max: "หลายชม." },
+      { q: "พลังงานน้องเทียบกับหมาตัวอื่นยังไง?", min: "ต่ำมาก", max: "สูงสุด" },
+      { q: "น้องต้องการ mental exercise ไหม?", min: "ไม่จำเป็น", max: "ทุกวัน" }
+    ],
+    9: [
+      { q: "น้องจดจ่อกับ treat ได้นานแค่ไหน?", min: "แป๊บเดียว", max: "จนกว่าจะได้" },
+      { q: "น้องวอกแวกง่ายแค่ไหนตอนฝึก?", min: "ง่ายมาก", max: "ไม่วอกแวก" },
+      { q: "น้องทำตาม command ได้กี่ครั้งติด?", min: "1 ครั้ง", max: "10+ ครั้ง" },
+      { q: "น้องสนใจ puzzle toy นานแค่ไหน?", min: "ไม่สนใจ", max: "จนกว่าจะเสร็จ" },
+      { q: "น้องมองตามวัตถุเคลื่อนที่ได้นานไหม?", min: "แป๊บเดียว", max: "นานมาก" },
+      { q: "น้องรอ treat ได้นานแค่ไหน?", min: "ไม่ได้เลย", max: "หลายนาที" },
+      { q: "น้องฟัง command ในที่มีสิ่งรบกวนได้ไหม?", min: "ไม่ได้", max: "ได้ดีมาก" },
+      { q: "น้องจำ routine ได้ดีแค่ไหน?", min: "ไม่จำ", max: "จำได้หมด" },
+      { q: "น้องสนใจ training session นานแค่ไหน?", min: "1 นาที", max: "30+ นาที" },
+      { q: "น้องหยุดทำอะไรเมื่อคุณบอกได้ไหม?", min: "ไม่ได้", max: "ทันที" }
+    ],
+    11: [
+      { q: "น้องตอบสนองกับเสียงดังยังไง?", min: "ตกใจมาก", max: "ไม่สน" },
+      { q: "น้องผ่อนคลายในสถานที่ใหม่เร็วแค่ไหน?", min: "นานมาก", max: "ทันที" },
+      { q: "น้อง stressed เมื่ออยู่คนเดียวไหม?", min: "มาก", max: "ไม่เลย" },
+      { q: "น้องนอนหลับสนิทไหม?", min: "ตื่นง่าย", max: "หลับลึก" },
+      { q: "น้องกังวลเรื่องอาหารไหม?", min: "กังวลมาก", max: "ชิลมาก" },
+      { q: "น้องตอบสนองกับสัตว์แปลกหน้ายังไง?", min: "ตื่นกลัว", max: "ชิลๆ" },
+      { q: "น้อง recover จาก stress เร็วแค่ไหน?", min: "ช้ามาก", max: "เร็วมาก" },
+      { q: "น้องนิ่งในรถได้ไหม?", min: "กระวนกระวาย", max: "นอนหลับ" },
+      { q: "น้องจัดการกับการเปลี่ยนแปลงยังไง?", min: "ยาก", max: "ง่าย" },
+      { q: "โดยรวม น้องเป็นหมาแบบไหน?", min: "วิตกกังวล", max: "สงบมาก" }
+    ]
   };
 
-  // Personality Results - Enhanced with Story, Science, How-To
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPER FUNCTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  const isTopicUnlocked = (topicId) => {
+    if (TEST_MODE) return true;
+    const topic = allTopics.find(t => t.id === topicId);
+    return Object.keys(completedTopics).length >= topic.unlockAt;
+  };
+
+  const isTopicCompleted = (topicId) => {
+    return completedTopics[topicId] !== undefined;
+  };
+
   const getPersonality = (score, topicId = 1) => {
     const config = topicPersonalityConfig[topicId] || topicPersonalityConfig[1];
-    const level = score >= 80 ? 'high' : score >= 60 ? 'medium' : score >= 40 ? 'low' : 'veryLow';
-    
-    const basePersonality = {
-      type: config.types[level],
-      emoji: config.emojis[level],
-      oxytocin: score,
-      topicName: config.name,
-      dimension: config.dimension,
-      gene: config.gene
-    };
-
-    // Topic 1: The Stare Code
-    if (topicId === 1) {
-      if (score >= 80) return {
-        ...basePersonality,
-        tagline: 'น้องหมาที่อ่านใจคุณได้',
-        description: 'น้องหมาของคุณมีความผูกพันระดับลึกสุด! การสบตาของน้องไม่ใช่แค่การมอง แต่เป็นการสื่อสารทางจิตวิญญาณ',
-        traits: ['อ่านใจเจ้าของเก่ง', 'ผูกพันลึกซึ้ง', 'ไวต่ออารมณ์', 'ต้องการความใกล้ชิด'],
-        rarity: 'หายาก — 12%',
-        storyInsight: { title: 'ทำไมน้องหมาบางตัวถึง "อ่านใจ" ได้?', content: 'ในปี 2015 นักวิทยาศาสตร์ญี่ปุ่นค้นพบว่า เมื่อน้องหมาสบตากับเจ้าของนาน 30 นาที ระดับ Oxytocin เพิ่มขึ้นถึง 130%!' },
-        scienceSecret: { title: 'ความลับของยีน OXTR', gene: 'OXTR (Oxytocin Receptor)', content: 'น้องหมาที่มียีน OXTR แบบ high expression จะรู้สึกผูกพันได้ลึกกว่า', funFact: '🧠 น้องหมาสามารถแยกแยะสีหน้า "ยิ้ม" กับ "โกรธ" ได้!' },
-        howToGuide: { title: 'วิธีเสริมสร้าง BOND', tips: [{ icon: '👁️', title: 'Eye Contact Ritual', desc: 'สบตาน้องหมา 5-10 นาทีต่อวัน' }, { icon: '🤲', title: 'Slow Touch Massage', desc: 'ลูบไล้น้องหมาช้าๆ ลด Cortisol' }, { icon: '🗣️', title: 'Talk Like a Friend', desc: 'พูดกับน้องหมาเหมือนคุยกับเพื่อน' }, { icon: '🏠', title: 'Safe Space', desc: 'จัดมุมพิเศษให้น้องหมาอยู่ใกล้คุณ' }] },
-        warnings: { title: 'สิ่งที่ควรระวัง', items: ['อาจมี Separation Anxiety', 'อาจเครียดตามเมื่อเห็นคุณเครียด', 'ต้องการความสม่ำเสมอ'] },
-        activities: { title: 'กิจกรรมที่แนะนำ', items: [{ emoji: '🧘', name: 'นั่งสมาธิด้วยกัน', desc: 'น้องจะนั่งเงียบๆ ข้างคุณ' }, { emoji: '📺', name: 'ดูหนังด้วยกัน', desc: 'ให้น้องนอนข้างๆ' }, { emoji: '🚶', name: 'เดินเล่นช้าๆ', desc: 'ไม่เร่งรีบ ให้เวลาสำรวจ' }] },
-        advice: 'ลองใช้เวลา 10 นาทีต่อวันสบตาและพูดคุยกับน้อง!'
-      };
-      if (score >= 60) return { ...basePersonality, tagline: 'น้องหมาที่รู้ใจคุณเสมอ', description: 'น้องหมาของคุณมีความสามารถในการอ่านอารมณ์สูงมาก!', traits: ['เข้าใจอารมณ์', 'ห่วงใยเจ้าของ', 'ชอบอยู่ใกล้ๆ'], rarity: 'พบได้บ่อย — 35%', storyInsight: { title: 'น้องหมารู้ได้ยังไงว่าคุณเศร้า?', content: 'น้องหมาสามารถอ่านสีหน้าและน้ำเสียงได้พร้อมกัน!' }, scienceSecret: { title: 'Emotional Contagion', gene: 'Mirror Neuron System', content: 'น้องหมามีระบบ Mirror Neuron คล้ายมนุษย์', funFact: '🐕 น้องหมาดมกลิ่นความเครียดได้!' }, howToGuide: { title: 'วิธีดูแล', tips: [{ icon: '😊', title: 'Manage Your Mood', desc: 'น้องจะรับอารมณ์คุณ' }, { icon: '🎉', title: 'Celebrate Together', desc: 'แสดงความดีใจให้น้องเห็น!' }] }, warnings: { title: 'สิ่งที่ควรระวัง', items: ['น้องอาจเครียดตามถ้าบ้านตึงเครียด'] }, activities: { title: 'กิจกรรมที่แนะนำ', items: [{ emoji: '🎾', name: 'เล่น Fetch', desc: 'ส่งพลังบวกให้น้อง' }] }, advice: 'ลองหากิจกรรมใหม่ๆ ทำด้วยกัน!' };
-      if (score >= 40) return { ...basePersonality, tagline: 'น้องหมาที่รักอิสระแต่ยังรักคุณ', description: 'น้องมีความสมดุลระหว่างอิสระและความผูกพัน', traits: ['มั่นใจในตัวเอง', 'รักอิสระ', 'ผูกพันแบบสบายๆ'], rarity: 'พบได้ทั่วไป — 40%', storyInsight: { title: 'ทำไมบางตัว "ไม่ติด" เจ้าของ?', content: 'ความ "ไม่ติด" ไม่ได้แปลว่าไม่รัก!' }, scienceSecret: { title: 'Secure Attachment', gene: 'DRD4 & OXTR Balance', content: 'น้องมีสมดุลระหว่างความอยากสำรวจและความผูกพัน', funFact: '🦮 น้องหมาที่ไม่ติดเจ้าของมักมี Separation Anxiety น้อยกว่า!' }, howToGuide: { title: 'วิธีเชื่อมต่อ', tips: [{ icon: '🎯', title: 'Activity-Based Bonding', desc: 'สร้าง bond ผ่านกิจกรรม' }] }, warnings: { title: 'สิ่งที่ควรระวัง', items: ['อย่าตีความว่าน้องไม่รัก'] }, activities: { title: 'กิจกรรมที่แนะนำ', items: [{ emoji: '🏃', name: 'วิ่งด้วยกัน', desc: 'กิจกรรมที่มีเป้าหมายร่วม' }] }, advice: 'ให้โอกาสน้องได้สำรวจโลกด้วยตัวเอง' };
-      return { ...basePersonality, tagline: 'น้องหมาผู้รักอิสระ', description: 'น้องหมามีจิตวิญญาณอิสระสูง!', traits: ['อิสระ', 'มั่นใจ', 'ฉลาดและรอบคอบ'], rarity: 'ไม่ค่อยพบ — 13%', storyInsight: { title: 'DNA ของหมาป่าที่ยังคงอยู่', content: 'บางตัวมียีนใกล้เคียงหมาป่ามากกว่า' }, scienceSecret: { title: 'Ancient Dog DNA', gene: 'DRD4 Long Allele', content: 'น้องมักมี DRD4 แบบ long allele', funFact: '🐺 Basenji แทบไม่เห่าเพราะ DNA ใกล้หมาป่า!' }, howToGuide: { title: 'วิธีเข้าถึงใจ', tips: [{ icon: '🤫', title: 'Let Them Come to You', desc: 'ให้น้องเข้ามาหาเอง' }] }, warnings: { title: 'สิ่งที่ควรระวัง', items: ['ระวังการหนีออกจากบ้าน'] }, activities: { title: 'กิจกรรมที่แนะนำ', items: [{ emoji: '👃', name: 'Scent Games', desc: 'ซ่อนขนมให้หา' }] }, advice: 'สังเกตพฤติกรรมเล็กๆ น้อยๆ ของน้อง' };
-    }
-
-    // Generic personality for other topics
-    const taglines = {
-      high: `น้องหมาของคุณมีคะแนน ${config.name} สูงมาก!`,
-      medium: `น้องหมาของคุณมีความสมดุลใน ${config.name}`,
-      low: `น้องหมาของคุณมีคะแนน ${config.name} ต่ำกว่าปกติ`,
-      veryLow: `น้องหมาของคุณเป็นแบบอิสระใน ${config.name}`
-    };
-
-    const descriptions = {
-      high: `น้องหมาของคุณแสดงออกถึง ${config.name} อย่างชัดเจน! นี่คือลักษณะพิเศษที่หาได้ยาก`,
-      medium: `น้องหมาของคุณมีความสมดุลที่ดีในด้าน ${config.name}`,
-      low: `น้องหมาของคุณไม่ได้แสดงออกถึง ${config.name} มากนัก ซึ่งก็มีข้อดีของมัน`,
-      veryLow: `น้องหมาของคุณมีลักษณะที่แตกต่างใน ${config.name} ซึ่งเป็นเอกลักษณ์`
-    };
-
-    const traits = {
-      high: ['พลังงานสูง', 'กระตือรือร้น', 'มีไหวพริบ'],
-      medium: ['สมดุล', 'ปรับตัวได้', 'เข้าสังคมดี'],
-      low: ['สงบ', 'ใจเย็น', 'ไม่วิตก'],
-      veryLow: ['อิสระ', 'มั่นใจ', 'ต้องการพื้นที่']
-    };
-
-    const rarities = {
-      high: 'หายาก — 15%',
-      medium: 'พบได้บ่อย — 45%',
-      low: 'พบได้ทั่วไป — 30%',
-      veryLow: 'หายาก — 10%'
-    };
-
+    const level = score >= 80 ? "high" : score >= 60 ? "medium" : score >= 40 ? "low" : "veryLow";
+    const db = personalityDB[topicId]?.[level] || {};
     return {
-      ...basePersonality,
-      tagline: taglines[level],
-      description: descriptions[level],
-      traits: traits[level],
-      rarity: rarities[level],
-      storyInsight: { 
-        title: `เรื่องน่ารู้เกี่ยวกับ ${config.name}`, 
-        content: `น้องหมาแต่ละตัวมีความแตกต่างในด้าน ${config.name} ซึ่งเกิดจากพันธุกรรมและสิ่งแวดล้อม` 
-      },
-      scienceSecret: { 
-        title: `ยีน ${config.gene}`, 
-        gene: config.gene, 
-        content: `ยีนนี้มีผลต่อพฤติกรรมด้าน ${config.name} ของน้องหมา`, 
-        funFact: `🧬 ${config.dimension} เป็นหนึ่งใน 5 มิติหลักของบุคลิกภาพน้องหมา!` 
-      },
-      howToGuide: { 
-        title: `วิธีดูแลน้องหมาแบบ ${config.types[level]}`, 
-        tips: [
-          { icon: '✨', title: 'เข้าใจความต้องการ', desc: 'สังเกตและเรียนรู้ว่าน้องต้องการอะไร' },
-          { icon: '🎯', title: 'กิจกรรมที่เหมาะสม', desc: 'เลือกกิจกรรมที่เข้ากับบุคลิกภาพน้อง' },
-          { icon: '💚', title: 'ความอดทน', desc: 'ให้เวลาน้องหมาปรับตัว' }
-        ] 
-      },
-      warnings: { title: 'สิ่งที่ควรระวัง', items: ['ทุกบุคลิกภาพมีข้อดีและข้อควรระวัง', 'สังเกตพฤติกรรมของน้องอยู่เสมอ'] },
-      activities: { 
-        title: 'กิจกรรมที่แนะนำ', 
-        items: [
-          { emoji: '🎾', name: 'เล่นด้วยกัน', desc: 'กิจกรรมที่สร้างความสัมพันธ์' },
-          { emoji: '🚶', name: 'เดินเล่น', desc: 'ออกกำลังกายและสำรวจโลก' }
-        ] 
-      },
-      advice: `น้องหมาของคุณเป็น ${config.types[level]} ลองปรับวิธีดูแลให้เข้ากับบุคลิกภาพของน้อง!`
+      type: db.type || config.types[level],
+      emoji: db.emoji || config.emojis[level],
+      tagline: db.tagline || "",
+      oxytocin: score,
+      rarity: db.rarity || "",
+      description: db.description || "",
+      traits: db.traits || [],
+      wow: db.wow || "",
+      scienceSecret: db.scienceSecret || "",
+      funFact: db.funFact || "",
+      actionToday: db.actionToday || [],
+      hook: db.hook || ""
     };
   };
 
-  const handleSwipe = (direction) => {
-    setSwipeDir(direction);
-    setTimeout(() => {
-      const newAnswers = [...answers, direction === 'right' ? 1 : 0];
-      setAnswers(newAnswers);
-      if (currentQuestion < quizQuestions.length - 1) {
-        setCurrentQuestion(currentQuestion + 1);
-      } else {
-        setLeadStep(0);
-        setSelectedBreed('');
-        setShowLeadGate(true);
+  const getDimensionScores = () => {
+    const scores = { BOND: [], DRIVE: [], MIND: [], NERVE: [], WILD: [] };
+    Object.entries(completedTopics).forEach(([topicId, data]) => {
+      const topic = allTopics.find(t => t.id === parseInt(topicId));
+      if (topic) {
+        scores[topic.dimension].push(data.score);
       }
-      setSwipeDir(null);
-    }, 300);
-  };
-
-  const submitLead = () => {
-    setShowLeadGate(false);
-    const score = Math.round((answers.reduce((a, b) => a + b, 0) / answers.length) * 100);
-    const finalBreed = selectedBreed === 'อื่นๆ (กรอกเอง)' ? customBreed : selectedBreed;
-    setLeadInfo({...leadInfo, breed: finalBreed});
-    const updatedTopics = {
-      ...completedTopics,
-      [currentTopic.id]: { score, answers: [...answers], completedAt: new Date() }
-    };
-    setCompletedTopics(updatedTopics);
-    // Auto-save to Supabase if logged in
-    if (user) saveToSupabase(currentTopic.id, score, [...answers]);
-    setScreen('result');
-    setRevealStep(0);
-    [1, 2, 3, 4, 5].forEach((step, i) => {
-      setTimeout(() => setRevealStep(step), (i + 1) * 600);
     });
+    const avgScores = {};
+    Object.entries(scores).forEach(([dim, arr]) => {
+      avgScores[dim] = arr.length > 0 ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+    });
+    return avgScores;
   };
 
-  const getScore = () => {
-    if (viewingResult) {
-      return completedTopics[viewingResult.id]?.score || 0;
-    }
-    return Math.round((answers.reduce((a, b) => a + b, 0) / answers.length) * 100);
+  const getArchetype = () => {
+    const dimScores = getDimensionScores();
+    const sorted = Object.entries(dimScores).filter(([_, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+    if (sorted.length < 2) return null;
+    
+    const [primary] = sorted[0];
+    const [secondary] = sorted[1];
+    
+    const archetypes = {
+      "BOND-DRIVE": { name: "The Enthusiastic Lover", desc: "รักอย่างทุ่มเท พลังงานเต็มเปี่ยม" },
+      "BOND-MIND": { name: "The Soul Reader", desc: "อ่านใจเก่ง ฉลาดล้ำ" },
+      "BOND-NERVE": { name: "The Steady Heart", desc: "รักมั่นคง ใจนิ่ง" },
+      "BOND-WILD": { name: "The Loyal Wolf", desc: "ซื่อสัตย์แต่ยังมีสัญชาตญาณ" },
+      "DRIVE-BOND": { name: "The Active Companion", desc: "เพื่อนเล่นที่รักคุณ" },
+      "DRIVE-MIND": { name: "The Smart Athlete", desc: "ฉลาดและแอคทีฟ" },
+      "DRIVE-NERVE": { name: "The Confident Player", desc: "มั่นใจและชอบเล่น" },
+      "DRIVE-WILD": { name: "The Primal Hunter", desc: "นักล่าผู้กล้า" },
+      "MIND-BOND": { name: "The Emotional Genius", desc: "ฉลาดและเข้าใจอารมณ์" },
+      "MIND-DRIVE": { name: "The Problem Solver", desc: "แก้ปัญหาไม่หยุด" },
+      "MIND-NERVE": { name: "The Wise Sage", desc: "นิ่งและรอบรู้" },
+      "MIND-WILD": { name: "The Cunning Fox", desc: "ฉลาดและมีไหวพริบ" },
+      "NERVE-BOND": { name: "The Calm Lover", desc: "รักอย่างสงบ" },
+      "NERVE-DRIVE": { name: "The Balanced Warrior", desc: "สมดุลและกล้าหาญ" },
+      "NERVE-MIND": { name: "The Zen Master", desc: "สงบและรอบรู้" },
+      "NERVE-WILD": { name: "The Silent Guardian", desc: "เฝ้าระวังอย่างสงบ" },
+      "WILD-BOND": { name: "The Devoted Wolf", desc: "ภักดีต่อฝูง" },
+      "WILD-DRIVE": { name: "The Untamed Spirit", desc: "จิตวิญญาณอิสระ" }
+    };
+    
+    const key = `${primary}-${secondary}`;
+    return { ...archetypes[key], primary, secondary, primaryScore: sorted[0][1], secondaryScore: sorted[1][1] };
   };
 
-  const isTopicCompleted = (topicId) => !!completedTopics[topicId];
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SUPABASE AUTH
+  // ═══════════════════════════════════════════════════════════════════════════
   
-  // TEST MODE: All topics unlocked for testing
-  const isTopicUnlocked = (topicId) => {
-    return true; // All topics accessible
-  };
-
-  // ─── Supabase Auth Functions ──────────────────────────────────────────────
   useEffect(() => {
-    if (!supabase) return;
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user);
-        loadProfileFromSupabase(session.user.id);
-      }
+      setUser(session?.user ?? null);
+      if (session?.user) loadUserData(session.user.id);
     });
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) loadUserData(session.user.id);
     });
+    
     return () => subscription.unsubscribe();
   }, []);
 
-  const loadProfileFromSupabase = async (userId) => {
-    if (!supabase) return;
+  const loadUserData = async (userId) => {
     try {
-      const { data: profile } = await supabase
-        .from('dog_profiles').select('*').eq('user_id', userId).single();
-      if (profile) {
-        setLeadInfo({ name: profile.owner_name, contact: profile.phone || '', dogName: profile.dog_name, breed: profile.breed, email: profile.email || '' });
-        setSelectedBreed(profile.breed);
+      const { data, error } = await supabase
+        .from("dog_profiles")
+        .select("*")
+        .eq("user_id", userId)
+        .single();
+      
+      if (data && !error) {
+        setLeadInfo(data.lead_info || {});
+        setCompletedTopics(data.completed_topics || {});
+        setSaveMsg("☁️ Data loaded!");
+        setTimeout(() => setSaveMsg(""), 2000);
       }
-      const { data: results } = await supabase
-        .from('test_results').select('*').eq('user_id', userId);
-      if (results?.length) {
-        const map = {};
-        results.forEach(r => { map[r.topic_id] = { score: r.score, answers: r.answers }; });
-        setCompletedTopics(map);
-      }
-    } catch(e) { console.warn('Load error:', e); }
+    } catch (e) {
+      console.log("No saved data yet");
+    }
   };
 
-  const saveToSupabase = async (topicId, score, answersArr) => {
-    if (!supabase || !user) return;
-    setIsSaving(true);
+  const saveUserData = async () => {
+    if (!user) return;
+    
     try {
-      // Upsert profile
-      await supabase.from('dog_profiles').upsert({
-        user_id: user.id,
-        owner_name: leadInfo.name,
-        dog_name: leadInfo.dogName,
-        breed: selectedBreed === 'อื่นๆ (กรอกเอง)' ? customBreed : selectedBreed,
-        email: leadInfo.email,
-        phone: leadInfo.contact,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' });
-      // Insert test result
-      await supabase.from('test_results').upsert({
-        user_id: user.id,
-        topic_id: topicId,
-        score,
-        answers: answersArr,
-        completed_at: new Date().toISOString()
-      }, { onConflict: 'user_id,topic_id' });
-      setSaveMsg('✅ บันทึกแล้ว!');
-    } catch(e) { setSaveMsg('❌ บันทึกไม่สำเร็จ'); }
-    setIsSaving(false);
-    setTimeout(() => setSaveMsg(''), 2500);
+      const { error } = await supabase
+        .from("dog_profiles")
+        .upsert({
+          user_id: user.id,
+          lead_info: leadInfo,
+          completed_topics: completedTopics,
+          updated_at: new Date().toISOString()
+        }, { onConflict: "user_id" });
+      
+      if (!error) {
+        setSaveMsg("✅ Saved!");
+        setTimeout(() => setSaveMsg(""), 2000);
+      }
+    } catch (e) {
+      setSaveMsg("❌ Save failed");
+    }
   };
 
-  const handleAuthSubmit = async () => {
-    if (!supabase) { setAuthError('⚠️ ยังไม่ได้ตั้งค่า Supabase'); return; }
-    if (!authEmail || !authPassword) { setAuthError('กรอก Email และ Password ด้วยนะคะ'); return; }
-    setAuthLoading(true); setAuthError('');
-    try {
-      if (authMode === 'register') {
-        if (authStep === 1) { setAuthStep(2); setAuthLoading(false); return; }
-        const { data, error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
-        if (error) throw error;
-        if (data.user) {
-          await supabase.from('dog_profiles').insert({
-            user_id: data.user.id,
-            owner_name: leadInfo.name,
-            dog_name: leadInfo.dogName,
-            breed: selectedBreed === 'อื่นๆ (กรอกเอง)' ? customBreed : selectedBreed,
-            email: authEmail,
-            phone: leadInfo.contact,
-          });
-          setUser(data.user);
-          setScreen('dashboard');
-        }
-      } else {
-        const { data, error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
-        if (error) throw error;
-        setUser(data.user);
-        await loadProfileFromSupabase(data.user.id);
-        setScreen('dashboard');
-      }
-    } catch(e) { setAuthError(e.message || 'เกิดข้อผิดพลาด ลองใหม่อีกครั้ง'); }
-    setAuthLoading(false);
+  const handleSignUp = async () => {
+    setAuthError("");
+    const { error } = await supabase.auth.signUp({
+      email: authEmail,
+      password: authPassword
+    });
+    if (error) {
+      setAuthError(error.message);
+    } else {
+      setScreen("dashboard");
+    }
+  };
+
+  const handleSignIn = async () => {
+    setAuthError("");
+    const { error } = await supabase.auth.signInWithPassword({
+      email: authEmail,
+      password: authPassword
+    });
+    if (error) {
+      setAuthError(error.message);
+    } else {
+      setScreen("dashboard");
+    }
   };
 
   const handleSignOut = async () => {
-    if (supabase) await supabase.auth.signOut();
+    await supabase.auth.signOut();
     setUser(null);
-    setLeadInfo({ name: '', contact: '', dogName: '', breed: '', email: '' });
     setCompletedTopics({});
-    setScreen('landing');
+    setLeadInfo({ dogName: "", breed: "", customBreed: "", age: "", ownerName: "" });
   };
-  // ──────────────────────────────────────────────────────────────────────────
-  const styles = {
-    container: {
-      minHeight: '100vh',
-      background: 'linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
-      fontFamily: "'Prompt', 'Segoe UI', sans-serif",
-      position: 'relative',
-      overflow: 'hidden'
-    },
-    lightContainer: {
-      minHeight: '100vh',
-      background: 'linear-gradient(180deg, #FFF5E6 0%, #FFE4CC 100%)',
-      fontFamily: "'Prompt', 'Segoe UI', sans-serif",
-    },
-    content: {
-      position: 'relative',
-      zIndex: 1,
-      maxWidth: 420,
-      margin: '0 auto',
-      padding: '20px 16px',
-      minHeight: '100vh'
-    },
-    glowOrb: {
-      position: 'absolute',
-      borderRadius: '50%',
-      filter: 'blur(60px)',
-      opacity: 0.4,
-      pointerEvents: 'none'
-    },
-    card: {
-      background: 'rgba(255,255,255,0.95)',
-      borderRadius: 24,
-      padding: 24,
-      boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
-    },
-    darkCard: {
-      background: 'rgba(255,255,255,0.08)',
-      borderRadius: 20,
-      padding: 20,
-      border: '1px solid rgba(255,255,255,0.1)'
-    },
-    btn: {
-      width: '100%',
-      padding: '18px 24px',
-      borderRadius: 16,
-      border: 'none',
-      fontSize: 17,
-      fontWeight: 700,
-      cursor: 'pointer',
-      transition: 'all 0.3s ease',
-      fontFamily: 'inherit'
-    },
-    btnPrimary: {
-      background: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 50%, #FFC107 100%)',
-      color: 'white',
-      boxShadow: '0 8px 30px rgba(255,107,107,0.5)'
-    },
-    btnGhost: {
-      background: 'transparent',
-      color: 'white',
-      border: '2px solid rgba(255,255,255,0.3)'
-    },
-    input: {
-      width: '100%',
-      padding: '16px 20px',
-      borderRadius: 14,
-      border: '2px solid #E8E8E8',
-      fontSize: 16,
-      outline: 'none',
-      background: '#F8F9FA',
-      color: '#333',
-      fontFamily: 'inherit',
-      boxSizing: 'border-box'
-    },
-    badge: {
-      width: 56,
-      height: 56,
-      borderRadius: 16,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: 24,
-      cursor: 'pointer',
-      transition: 'all 0.3s ease',
-      position: 'relative'
-    },
-    modal: {
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0,0,0,0.8)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 20,
-      zIndex: 100
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // QUIZ HANDLERS
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  const startQuiz = (topic) => {
+    setCurrentTopic(topic);
+    setCurrentQ(0);
+    setAnswers([]);
+    setShowResult(false);
+    setQuizScore(0);
+    setScreen("quiz");
+  };
+
+  const handleAnswer = (answerIndex, score) => {
+    const newAnswers = [...answers, { q: currentQ, a: answerIndex, s: score }];
+    setAnswers(newAnswers);
+    
+    if (currentQ < 9) {
+      setCurrentQ(currentQ + 1);
+    } else {
+      // Calculate score
+      const totalScore = newAnswers.reduce((sum, ans) => sum + ans.s, 0);
+      const maxScore = 40; // 10 questions × 4 max
+      const percentage = Math.round((totalScore / maxScore) * 100);
+      setQuizScore(percentage);
+      
+      // Save result
+      const newCompleted = {
+        ...completedTopics,
+        [currentTopic.id]: {
+          score: percentage,
+          completedAt: new Date().toISOString(),
+          personality: getPersonality(percentage, currentTopic.id).type
+        }
+      };
+      setCompletedTopics(newCompleted);
+      setShowResult(true);
+      
+      if (user) saveUserData();
     }
   };
+
+  const handleSliderSubmit = (values) => {
+    const totalScore = values.reduce((sum, v) => sum + v, 0);
+    const maxScore = 50; // 10 questions × 5 max
+    const percentage = Math.round((totalScore / maxScore) * 100);
+    setQuizScore(percentage);
+    
+    const newCompleted = {
+      ...completedTopics,
+      [currentTopic.id]: {
+        score: percentage,
+        completedAt: new Date().toISOString(),
+        personality: getPersonality(percentage, currentTopic.id).type
+      }
+    };
+    setCompletedTopics(newCompleted);
+    setShowResult(true);
+    
+    if (user) saveUserData();
+  };
+
+  const handleSwipeComplete = (likes) => {
+    const percentage = Math.round((likes / 10) * 100);
+    setQuizScore(percentage);
+    
+    const newCompleted = {
+      ...completedTopics,
+      [currentTopic.id]: {
+        score: percentage,
+        completedAt: new Date().toISOString(),
+        personality: getPersonality(percentage, currentTopic.id).type
+      }
+    };
+    setCompletedTopics(newCompleted);
+    setShowResult(true);
+    
+    if (user) saveUserData();
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STYLES
+  // ═══════════════════════════════════════════════════════════════════════════
+  const styles = {
+    container: {
+      minHeight: "100vh",
+      background: "linear-gradient(180deg, #1a1025 0%, #2d1b3d 50%, #1a1025 100%)",
+      padding: "20px",
+      position: "relative",
+      overflow: "hidden"
+    },
+    content: {
+      maxWidth: "400px",
+      margin: "0 auto",
+      position: "relative",
+      zIndex: 1
+    },
+    glowOrb: {
+      position: "absolute",
+      borderRadius: "50%",
+      filter: "blur(80px)",
+      opacity: 0.3,
+      pointerEvents: "none"
+    },
+    card: {
+      background: "rgba(255,255,255,0.05)",
+      backdropFilter: "blur(10px)",
+      borderRadius: "20px",
+      border: "1px solid rgba(255,255,255,0.1)",
+      padding: "20px",
+      marginBottom: "16px"
+    },
+    btn: {
+      width: "100%",
+      padding: "16px 24px",
+      borderRadius: "16px",
+      border: "none",
+      fontSize: "16px",
+      fontWeight: "600",
+      cursor: "pointer",
+      transition: "all 0.3s ease",
+      fontFamily: "inherit"
+    },
+    btnPrimary: {
+      background: "linear-gradient(135deg, #FF6B9D 0%, #FFD93D 100%)",
+      color: "#1a1025"
+    },
+    btnSecondary: {
+      background: "rgba(255,255,255,0.1)",
+      color: "white",
+      border: "1px solid rgba(255,255,255,0.2)"
+    },
+    input: {
+      width: "100%",
+      padding: "14px 16px",
+      borderRadius: "12px",
+      border: "1px solid rgba(255,255,255,0.2)",
+      background: "rgba(255,255,255,0.05)",
+      color: "white",
+      fontSize: "16px",
+      marginBottom: "12px",
+      fontFamily: "inherit",
+      outline: "none"
+    }
+  };
+
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SCREEN COMPONENTS
+  // ═══════════════════════════════════════════════════════════════════════════
 
   // Landing Screen
   const LandingScreen = () => (
     <div style={styles.container}>
-      <div style={{...styles.glowOrb, width: 300, height: 300, background: '#FF6B6B', top: -100, right: -100}} />
-      <div style={{...styles.glowOrb, width: 400, height: 400, background: '#4ECDC4', bottom: -150, left: -150}} />
+      <div style={{...styles.glowOrb, width: 300, height: 300, background: "#FF6B9D", top: -100, right: -100}} />
+      <div style={{...styles.glowOrb, width: 200, height: 200, background: "#FFD93D", bottom: 100, left: -80}} />
       
       <div style={styles.content}>
-        <div style={{ textAlign: 'center', paddingTop: 40 }}>
-          <div style={{ fontSize: 14, letterSpacing: 4, color: 'rgba(255,255,255,0.6)', marginBottom: 16 }}>
-            🐾 MHA' STORY
-          </div>
-
-          {/* Logo & Tagline */}
-          <div style={{ 
-            fontSize: 56, 
-            marginBottom: 12,
-            filter: 'drop-shadow(0 0 30px rgba(255,107,107,0.5))'
-          }}>
-            🧬
-          </div>
-          <div style={{ 
-            fontSize: 28, 
-            fontWeight: 800, 
-            color: 'white',
-            marginBottom: 4,
-            letterSpacing: 1
-          }}>
-            Dog Profile
-          </div>
-          <div style={{ 
-            fontSize: 16, 
-            color: 'rgba(255,255,255,0.6)',
-            fontStyle: 'italic',
-            letterSpacing: 2,
-            marginBottom: 24
-          }}>
-            Science & Secret
-          </div>
-
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: 'white', marginBottom: 12, lineHeight: 1.3 }}>
-            น้องหมาของคุณ<br/>
-            <span style={{
-              background: 'linear-gradient(135deg, #FF6B6B, #FFD93D)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
-            }}>
-              อ่านใจคุณได้แค่ไหน?
-            </span>
+        <div style={{ textAlign: "center", paddingTop: "60px" }}>
+          <div style={{ fontSize: "80px", marginBottom: "20px" }}>🐕</div>
+          <h1 style={{ fontSize: "32px", fontWeight: "700", color: "white", marginBottom: "8px" }}>
+            MHA' STORY
           </h1>
-
-          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', lineHeight: 1.8, marginBottom: 28 }}>
-            น้องหมาทุกตัวมี 'บุคลิกภาพ' ที่ซ่อนอยู่ใน DNA<br/>
-            MHA' Story จะช่วยให้คุณค้นพบความลับนั้น<br/>
-            <span style={{ color: '#FFD93D' }}>เพื่อความเข้าใจที่ลึกซึ้ง และความรักที่เติบโต</span>
+          <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "14px", marginBottom: "40px" }}>
+            ถอดรหัส DNA บุคลิกภาพน้องหมาของคุณ
           </p>
-
-          {/* Science Badge */}
-          <div style={{ ...styles.darkCard, padding: 16, marginBottom: 28, textAlign: 'left' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{
-                width: 50, height: 50, borderRadius: 14,
-                background: 'linear-gradient(135deg, #FF6B6B22, #FFD93D22)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24
-              }}>🔬</div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'white', marginBottom: 2 }}>
-                  Based on Real Science
-                </div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
-                  12 Topics • 5 Dimensions • 8 Archetypes
-                </div>
-              </div>
-            </div>
+          
+          <div style={styles.card}>
+            <div style={{ fontSize: "24px", marginBottom: "12px" }}>🧬</div>
+            <h3 style={{ color: "white", fontSize: "18px", marginBottom: "8px" }}>12 Tests • 5 Dimensions</h3>
+            <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "13px" }}>BOND • DRIVE • MIND • NERVE • WILD</p>
           </div>
-
-          {/* Stats */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginBottom: 28 }}>
-            {[{ num: '12', label: 'Tests' }, { num: '5', label: 'Dimensions' }, { num: 'FREE', label: '' }].map((stat, i) => (
-              <div key={i} style={{ textAlign: 'center' }}>
-                <div style={{ 
-                  fontSize: 24, fontWeight: 800,
-                  background: 'linear-gradient(135deg, #FF6B6B, #FFD93D)',
-                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
-                }}>{stat.num}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{stat.label}</div>
-              </div>
-            ))}
-          </div>
-
-          <button 
-            style={{ ...styles.btn, ...styles.btnPrimary, marginBottom: 12 }}
-            onClick={() => setScreen('overview')}
-          >
-            🚀 เริ่มทดสอบเลย — ฟรี!
+          
+          <button onClick={() => setScreen("onboarding")} style={{...styles.btn, ...styles.btnPrimary}}>
+            🚀 เริ่มต้นเลย!
           </button>
-
+          
           {user ? (
-            <div>
-              <button 
-                style={{ ...styles.btn, ...styles.btnGhost, marginBottom: 8 }}
-                onClick={() => setScreen('dashboard')}
-              >
-                🐕 {leadInfo.dogName || 'Dog Profile'} — Dashboard
-              </button>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 8 }}>
-                เข้าสู่ระบบในฐานะ {user.email} •{' '}
-                <span style={{ cursor: 'pointer', color: '#FF6B6B', textDecoration: 'underline' }} onClick={handleSignOut}>ออกจากระบบ</span>
-              </div>
-            </div>
+            <p style={{ color: "rgba(100,255,180,0.7)", fontSize: "12px", marginTop: "16px" }}>
+              ☁️ Logged in: {user.email}
+            </p>
           ) : (
-            <div>
-              <button 
-                style={{ ...styles.btn, ...styles.btnGhost, marginBottom: 8 }}
-                onClick={() => { setAuthMode('login'); setAuthStep(1); setAuthError(''); setScreen('auth'); }}
-              >
-                🔐 เข้าสู่ระบบ / บันทึกผล
-              </button>
-              <button 
-                style={{ ...styles.btn, background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 13, padding: '8px 0' }}
-                onClick={() => setScreen('dashboard')}
-              >
-                ดู Dashboard ก่อน (ไม่ login)
-              </button>
-            </div>
+            <button onClick={() => { setAuthMode("login"); setScreen("auth"); }}
+              style={{...styles.btn, ...styles.btnSecondary, marginTop: "12px"}}>
+              🔐 Login / Register
+            </button>
           )}
-
-          <div style={{ marginTop: 20, fontSize: 12, color: 'rgba(255,255,255,0.4)', display: 'flex', justifyContent: 'center', gap: 16 }}>
-            <span>✓ ไม่ต้องสมัคร</span>
-            <span>✓ ฟรี 100%</span>
-            <span>✓ ดูผลได้ทันที</span>
-          </div>
         </div>
       </div>
     </div>
   );
 
-  // Overview Screen - Show all 12 DNA Tests
-  const OverviewScreen = () => {
-    const dimensions = [
-      { name: 'BOND', emoji: '💛', color: '#FFD93D', desc: 'ความผูกพัน' },
-      { name: 'DRIVE', emoji: '⚡', color: '#FF6B6B', desc: 'แรงขับ' },
-      { name: 'MIND', emoji: '🧠', color: '#4ECDC4', desc: 'สติปัญญา' },
-      { name: 'NERVE', emoji: '🛡️', color: '#9B59B6', desc: 'ความมั่นคง' },
-      { name: 'WILD', emoji: '🌍', color: '#2ECC71', desc: 'สัญชาตญาณ' }
-    ];
-
+  // Onboarding Screen
+  const OnboardingScreen = () => {
+    const [step, setStep] = useState(1);
+    
     return (
       <div style={styles.container}>
-        <div style={{...styles.glowOrb, width: 300, height: 300, background: '#FF6B6B', top: -50, right: -100}} />
-        <div style={{...styles.glowOrb, width: 300, height: 300, background: '#4ECDC4', bottom: 100, left: -100}} />
-        <div style={{...styles.glowOrb, width: 200, height: 200, background: '#9B59B6', top: '50%', right: -50}} />
-        
+        <div style={{...styles.glowOrb, width: 250, height: 250, background: "#6BCB77", top: 50, left: -100}} />
         <div style={styles.content}>
-          {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
-            <button onClick={() => setScreen('landing')} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: 'white' }}>←</button>
-            <div style={{ flex: 1 }} />
-            <div style={{ width: 24 }} />
-          </div>
-
-          {/* Logo & Tagline */}
-          <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <div style={{ 
-              fontSize: 48, 
-              marginBottom: 8,
-              filter: 'drop-shadow(0 0 30px rgba(255,107,107,0.5))'
-            }}>
-              🧬
-            </div>
-            <div style={{ 
-              fontSize: 24, 
-              fontWeight: 800, 
-              color: 'white',
-              marginBottom: 4
-            }}>
-              Dog Profile
-            </div>
-            <div style={{ 
-              fontSize: 14, 
-              color: 'rgba(255,255,255,0.6)',
-              fontStyle: 'italic',
-              letterSpacing: 2
-            }}>
-              Science & Secret
-            </div>
-          </div>
-
-          {/* 5 Dimensions with Info Button */}
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              gap: 8,
-              marginBottom: 12 
-            }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>
-                5 DNA DIMENSIONS
-              </span>
-              <button
-                onClick={() => setShowDimensionPopup(true)}
-                style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  borderRadius: '50%',
-                  width: 22,
-                  height: 22,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  color: 'rgba(255,255,255,0.7)'
-                }}
-              >
-                ?
-              </button>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
-              {dimensions.map((dim) => (
-                <div key={dim.name} style={{
-                  background: `${dim.color}22`,
-                  border: `1px solid ${dim.color}44`,
-                  borderRadius: 10,
-                  padding: '6px 10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4
-                }}>
-                  <span style={{ fontSize: 14 }}>{dim.emoji}</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: dim.color }}>{dim.name}</span>
-                </div>
+          <button onClick={() => step > 1 ? setStep(step - 1) : setScreen("landing")}
+            style={{ background: "none", border: "none", color: "white", fontSize: "24px", cursor: "pointer", marginBottom: "20px" }}>
+            ←
+          </button>
+          
+          <div style={{ textAlign: "center", marginBottom: "30px" }}>
+            <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginBottom: "20px" }}>
+              {[1, 2, 3].map(i => (
+                <div key={i} style={{
+                  width: i === step ? "24px" : "8px", height: "8px",
+                  borderRadius: "4px", background: i === step ? "#FF6B9D" : "rgba(255,255,255,0.2)",
+                  transition: "all 0.3s"
+                }} />
               ))}
             </div>
           </div>
-
-          {/* Subtitle */}
-          <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: 'white', marginBottom: 6, lineHeight: 1.3 }}>
-              ค้นพบ <span style={{ color: '#FFD93D' }}>12 Tests</span> ใน <span style={{ color: '#4ECDC4' }}>4 Paw Sequences</span>
-            </h2>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-              แต่ละ Test จะเปิดเผยความลับใน DNA ของน้องหมา
-            </p>
-          </div>
-
-          {/* 4 Paw Sequences with Badge Grid */}
-          {islands.map((paw) => {
-            const pawTopics = allTopics.filter(t => paw.topics.includes(t.id));
-            
-            return (
-              <div key={paw.id} style={{ marginBottom: 24 }}>
-                {/* Paw Sequence Header */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  marginBottom: 12
-                }}>
-                  <div style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    background: `linear-gradient(135deg, ${paw.color}, ${paw.color}CC)`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 16,
-                    boxShadow: `0 4px 15px ${paw.color}44`
-                  }}>
-                    {paw.emoji}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>
-                      Paw Sequence {paw.id}: {paw.name}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Badge Grid for this Paw Sequence */}
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(3, 1fr)', 
-                  gap: 12 
-                }}>
-                  {pawTopics.map((topic) => {
-                    const isCompleted = isTopicCompleted(topic.id);
-                    const isUnlocked = isTopicUnlocked(topic.id);
-                    
-                    return (
-                      <div
-                        key={topic.id}
-                        onClick={() => { setSelectedBadge(topic); setShowBadgeModal(true); }}
-                        style={{
-                          background: isCompleted 
-                            ? `linear-gradient(135deg, ${topic.color}, ${topic.color}CC)` 
-                            : isUnlocked 
-                              ? `${topic.color}22` 
-                              : 'rgba(255,255,255,0.05)',
-                          border: `2px solid ${isCompleted ? topic.color : isUnlocked ? `${topic.color}66` : 'rgba(255,255,255,0.1)'}`,
-                          borderRadius: 16,
-                          padding: 16,
-                          cursor: 'pointer',
-                          transition: 'all 0.3s',
-                          position: 'relative',
-                          opacity: isUnlocked ? 1 : 0.6,
-                          boxShadow: isCompleted ? `0 4px 20px ${topic.color}44` : 'none'
-                        }}
-                      >
-                        {/* Badge Icon */}
-                        <div style={{
-                          fontSize: 32,
-                          textAlign: 'center',
-                          marginBottom: 8,
-                          filter: isUnlocked ? 'none' : 'grayscale(100%)'
-                        }}>
-                          {topic.emoji}
-                        </div>
-
-                        {/* Topic Name */}
-                        <div style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: isCompleted ? 'white' : isUnlocked ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)',
-                          textAlign: 'center',
-                          lineHeight: 1.3
-                        }}>
-                          {topic.name}
-                        </div>
-
-                        {/* Green Checkmark for Completed */}
-                        {isCompleted && (
-                          <div style={{
-                            position: 'absolute',
-                            top: -6,
-                            right: -6,
-                            width: 24,
-                            height: 24,
-                            borderRadius: '50%',
-                            background: 'linear-gradient(135deg, #2ECC71, #27AE60)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxShadow: '0 2px 8px rgba(46,204,113,0.5)',
-                            border: '2px solid white'
-                          }}>
-                            <span style={{ color: 'white', fontSize: 14, fontWeight: 700 }}>✓</span>
-                          </div>
-                        )}
-
-                        {/* Lock Icon for Locked */}
-                        {!isUnlocked && (
-                          <div style={{
-                            position: 'absolute',
-                            bottom: -4,
-                            right: -4,
-                            width: 20,
-                            height: 20,
-                            borderRadius: '50%',
-                            background: 'rgba(0,0,0,0.6)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            border: '1px solid rgba(255,255,255,0.2)'
-                          }}>
-                            <span style={{ fontSize: 10 }}>🔒</span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-
-          {/* What You'll Get */}
-          <div style={{
-            ...styles.darkCard,
-            background: 'linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,107,107,0.1))',
-            border: '1px solid rgba(255,215,0,0.2)',
-            marginBottom: 20
-          }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#FFD700', marginBottom: 14, textAlign: 'center' }}>
-              🎁 สิ่งที่คุณจะได้รับเมื่อทำครบ 12 Tests
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {[
-                { emoji: '🧬', text: 'DNA Radar Chart 5 มิติ' },
-                { emoji: '🏆', text: 'Dog Archetype (1 ใน 8)' },
-                { emoji: '💡', text: 'คำแนะนำเฉพาะบุคคล' },
-                { emoji: '🎴', text: 'Share Card สวยๆ' },
-                { emoji: '❤️', text: 'Bond Match กับเจ้าของ' },
-                { emoji: '📊', text: 'Health Risk Flags' }
-              ].map((item, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: 16 }}>{item.emoji}</span>
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>{item.text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* CTA */}
-          <button 
-            style={{ ...styles.btn, ...styles.btnPrimary, marginBottom: 12 }}
-            onClick={() => {
-              setCurrentTopic(allTopics[0]);
-              setScreen('topic-intro');
-            }}
-          >
-            🐾 เริ่มจาก Paw Sequence 1
-          </button>
-
-          <div style={{ textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 20 }}>
-            ทำทีละ Test ก็ได้ • ไม่ต้องรีบ • ผลสะสมอัตโนมัติ
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Dimension Info Popup
-  const DimensionPopup = () => (
-    <div style={styles.modal} onClick={() => setShowDimensionPopup(false)}>
-      <div 
-        style={{ 
-          ...styles.card, 
-          maxWidth: 380, 
-          width: '100%',
-          maxHeight: '85vh',
-          overflowY: 'auto'
-        }} 
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: '#333' }}>🧬 5 DNA Dimensions</div>
-            <div style={{ fontSize: 12, color: '#888' }}>ทำไมเราถึงแบ่งเป็น 5 มิติ?</div>
-          </div>
-          <button 
-            onClick={() => setShowDimensionPopup(false)}
-            style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#999' }}
-          >×</button>
-        </div>
-
-        {/* Intro */}
-        <div style={{
-          background: 'linear-gradient(135deg, #FFF5E6, #FFE8F0)',
-          borderRadius: 16,
-          padding: 16,
-          marginBottom: 20
-        }}>
-          <p style={{ fontSize: 13, color: '#555', lineHeight: 1.7, margin: 0 }}>
-            งานวิจัยด้านพันธุศาสตร์พฤติกรรมสุนัขพบว่า บุคลิกภาพของน้องหมาถูกควบคุมโดย <strong>5 กลุ่มยีนหลัก</strong> ที่ส่งผลต่อพฤติกรรมและอารมณ์อย่างชัดเจน
-          </p>
-        </div>
-
-        {/* Each Dimension */}
-        {dimensionInfo.map((dim, i) => (
-          <div key={dim.name} style={{
-            background: `${dim.color}11`,
-            border: `1px solid ${dim.color}33`,
-            borderRadius: 16,
-            padding: 16,
-            marginBottom: 12
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-              <div style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                background: `linear-gradient(135deg, ${dim.color}, ${dim.color}CC)`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 22
-              }}>
-                {dim.emoji}
-              </div>
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: '#333' }}>{dim.name}</div>
-                <div style={{ fontSize: 10, color: dim.color, fontWeight: 600 }}>{dim.gene}</div>
-              </div>
-            </div>
-            <p style={{ fontSize: 12, color: '#555', lineHeight: 1.6, margin: 0 }}>
-              {dim.desc}
-            </p>
-          </div>
-        ))}
-
-        {/* Source */}
-        <div style={{ 
-          fontSize: 10, 
-          color: '#999', 
-          textAlign: 'center',
-          padding: '12px 0',
-          borderTop: '1px solid #EEE'
-        }}>
-          📚 อ้างอิงจาก: Nagasawa et al. (2015), Hare & Tomasello (2005),<br/>
-          Raffan et al. (2016), และงานวิจัยอื่นๆ
-        </div>
-
-        <button
-          onClick={() => setShowDimensionPopup(false)}
-          style={{ ...styles.btn, background: '#333', color: 'white' }}
-        >
-          เข้าใจแล้ว! 👍
-        </button>
-      </div>
-    </div>
-  );
-
-  // Topic Intro Screen
-  const TopicIntroScreen = () => (
-    <div style={styles.container}>
-      <div style={{...styles.glowOrb, width: 300, height: 300, background: currentTopic.color, top: 50, right: -100}} />
-      
-      <div style={styles.content}>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
-          <button onClick={() => setScreen('overview')} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: 'white' }}>←</button>
-          <div style={{ flex: 1 }} />
-          <div style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: 20, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>
-            🐾 Paw {currentTopic.island} • Test {currentTopic.id}
-          </div>
-        </div>
-
-        <div style={{ textAlign: 'center', paddingTop: 20 }}>
-          <div style={{
-            width: 120, height: 120, borderRadius: 30,
-            background: `linear-gradient(135deg, ${currentTopic.color}33, ${currentTopic.color}11)`,
-            border: `3px solid ${currentTopic.color}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 56, margin: '0 auto 24px',
-            boxShadow: `0 0 60px ${currentTopic.color}44`
-          }}>
-            {currentTopic.emoji}
-          </div>
-
-          <h1 style={{ fontSize: 32, fontWeight: 800, color: 'white', marginBottom: 8 }}>
-            {currentTopic.name}
-          </h1>
-
-          <div style={{
-            display: 'inline-block', padding: '8px 16px',
-            background: `${currentTopic.color}22`, borderRadius: 20,
-            fontSize: 14, color: currentTopic.color, fontWeight: 600, marginBottom: 24
-          }}>
-            {currentTopic.dimensionEmoji} {currentTopic.dimension} Dimension
-          </div>
-
-          <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.8)', lineHeight: 1.6, marginBottom: 24 }}>
-            {currentTopic.fullDesc}
-          </p>
-
-          {/* Science Fact */}
-          <div style={{ ...styles.darkCard, textAlign: 'left', marginBottom: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <span style={{ fontSize: 20 }}>🔬</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: currentTopic.color }}>Science Fact</span>
-            </div>
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', lineHeight: 1.7, margin: 0 }}>
-              {currentTopic.scienceFact}
-            </p>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 12 }}>
-              📚 {currentTopic.reference}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 24, margin: '24px 0', color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>
-            <span>📝 {currentTopic.questions} คำถาม</span>
-            <span>⏱️ {currentTopic.duration}</span>
-          </div>
-
-          <button
-            onClick={() => { setCurrentQuestion(0); setAnswers([]); setScreen('quiz'); }}
-            style={{ ...styles.btn, ...styles.btnPrimary, fontSize: 18 }}
-          >
-            🧬 เริ่มค้นหา DNA บุคลิกภาพ
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Quiz Screen
-  const QuizScreen = () => (
-    <div style={styles.container}>
-      <div style={{...styles.glowOrb, width: 200, height: 200, background: currentTopic.color, top: 100, left: -80}} />
-      
-      <div style={styles.content}>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-          <button onClick={() => setScreen('topic-intro')} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: 'white' }}>←</button>
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            <span style={{ fontSize: 20 }}>{currentTopic.emoji}</span>
-            <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginLeft: 8 }}>{currentTopic.name}</span>
-          </div>
-          <span style={{ background: currentTopic.color, color: 'white', padding: '6px 14px', borderRadius: 20, fontSize: 14, fontWeight: 700 }}>
-            {currentQuestion + 1}/10
-          </span>
-        </div>
-
-        <div style={{ height: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 3, marginBottom: 40, overflow: 'hidden' }}>
-          <div style={{
-            width: `${((currentQuestion + 1) / 10) * 100}%`,
-            height: '100%',
-            background: `linear-gradient(90deg, ${currentTopic.color}, #FFD93D)`,
-            borderRadius: 3, transition: 'width 0.5s ease',
-            boxShadow: `0 0 20px ${currentTopic.color}`
-          }} />
-        </div>
-
-        <div style={{
-          ...styles.card, textAlign: 'center',
-          transform: swipeDir === 'left' ? 'translateX(-100px) rotate(-10deg)' : 
-                     swipeDir === 'right' ? 'translateX(100px) rotate(10deg)' : 'none',
-          opacity: swipeDir ? 0.5 : 1, transition: 'all 0.3s ease'
-        }}>
-          <div style={{ fontSize: 56, marginBottom: 20 }}>{quizQuestions[currentQuestion].emoji}</div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: '#333', lineHeight: 1.4, marginBottom: 40, minHeight: 60 }}>
-            {quizQuestions[currentQuestion].q}
-          </h2>
-
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 32, marginBottom: 20 }}>
-            <button onClick={() => handleSwipe('left')} style={{
-              width: 90, height: 90, borderRadius: '50%', border: 'none',
-              background: 'linear-gradient(135deg, #FFE4E4, #FFCCCC)',
-              fontSize: 40, cursor: 'pointer', boxShadow: '0 8px 25px rgba(255,107,107,0.3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>😅</button>
-            <button onClick={() => handleSwipe('right')} style={{
-              width: 90, height: 90, borderRadius: '50%', border: 'none',
-              background: 'linear-gradient(135deg, #E4FFE4, #CCFFCC)',
-              fontSize: 40, cursor: 'pointer', boxShadow: '0 8px 25px rgba(76,175,80,0.3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>😍</button>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#888', padding: '0 20px' }}>
-            <span>ไม่ใช่เลย</span>
-            <span>ใช่เลย!</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Lead Gate Modal
-  // Lead Gate Modal - Step by Step
-  const LeadGateModal = () => {
-    // Using refs to prevent LINE browser re-render issues
-    const goNextStep = () => {
-      if (leadStep === 0) {
-        const val = dogNameRef.current?.value || '';
-        if (val.trim()) {
-          setLeadInfo({...leadInfo, dogName: val});
-          setLeadStep(1);
-        }
-      } else if (leadStep === 1) {
-        if (selectedBreed === 'อื่นๆ (กรอกเอง)') {
-          const val = customBreedRef.current?.value || '';
-          if (val.trim()) {
-            setCustomBreed(val);
-            setLeadStep(2);
-          }
-        } else if (selectedBreed) {
-          setLeadStep(2);
-        }
-      } else if (leadStep === 2) {
-        const val = ownerNameRef.current?.value || '';
-        if (val.trim()) {
-          setLeadInfo({...leadInfo, name: val});
-          setLeadStep(3);
-        }
-      } else if (leadStep === 3) {
-        const emailVal = emailRef.current?.value || '';
-        const phoneVal = phoneRef.current?.value || '';
-        if (emailVal.includes('@')) {
-          setLeadInfo({...leadInfo, email: emailVal, contact: phoneVal});
-          submitLead();
-        }
-      }
-    };
-
-    return (
-      <div style={styles.modal}>
-        <div style={{ ...styles.card, maxWidth: 380, width: '100%' }}>
-          {/* Progress Dots */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 24 }}>
-            {[0, 1, 2, 3].map((step) => (
-              <div key={step} style={{
-                width: step === leadStep ? 24 : 8,
-                height: 8,
-                borderRadius: 4,
-                background: step <= leadStep ? 'linear-gradient(135deg, #FF6B6B, #FFD93D)' : '#E0E0E0',
-                transition: 'all 0.3s ease'
-              }} />
-            ))}
-          </div>
-
-          {/* Step 0: Dog Name */}
-          {leadStep === 0 && (
-            <div style={{ animation: 'fadeIn 0.3s ease' }}>
-              <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                <div style={{ fontSize: 56, marginBottom: 12 }}>🐕</div>
-                <h2 style={{ fontSize: 22, fontWeight: 800, color: '#333', marginBottom: 8 }}>
-                  น้องหมาชื่ออะไร?
-                </h2>
-                <p style={{ fontSize: 13, color: '#888' }}>
-                  บอกชื่อน้องเพื่อดูผล DNA ส่วนตัว
-                </p>
-              </div>
-
+          
+          {step === 1 && (
+            <div style={styles.card}>
+              <h3 style={{ color: "white", fontSize: "18px", marginBottom: "16px" }}>🐕 น้องหมาชื่ออะไร?</h3>
               <input
-                type="text"
-                placeholder="พิมพ์ชื่อน้องหมา..."
                 ref={dogNameRef}
-                defaultValue={leadInfo.dogName}
-                onBlur={(e) => setLeadInfo({...leadInfo, dogName: e.target.value})}
-                onKeyPress={(e) => { if (e.key === 'Enter') goNextStep(); }}
-                style={{
-                  ...styles.input,
-                  fontSize: 18,
-                  textAlign: 'center',
-                  marginBottom: 20
-                }}
-              />
-
-              <button 
-                onClick={goNextStep}
-                style={{ ...styles.btn, ...styles.btnPrimary }}
-              >
-                ถัดไป →
-              </button>
-            </div>
-          )}
-
-          {/* Step 1: Breed */}
-          {leadStep === 1 && (
-            <div style={{ animation: 'fadeIn 0.3s ease' }}>
-              <div style={{ textAlign: 'center', marginBottom: 20 }}>
-                <div style={{ fontSize: 56, marginBottom: 12 }}>🐾</div>
-                <h2 style={{ fontSize: 22, fontWeight: 800, color: '#333', marginBottom: 8 }}>
-                  {leadInfo.dogName} เป็นพันธุ์อะไร?
-                </h2>
-                <p style={{ fontSize: 13, color: '#888' }}>
-                  เลือกสายพันธุ์ที่ใกล้เคียงที่สุด
-                </p>
-              </div>
-
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(2, 1fr)', 
-                gap: 8,
-                maxHeight: selectedBreed === 'อื่นๆ (กรอกเอง)' ? 200 : 280,
-                overflowY: 'auto',
-                marginBottom: 12,
-                padding: 4
-              }}>
-                {dogBreeds.map((breed) => (
-                  <button
-                    key={breed}
-                    onClick={() => { setSelectedBreed(breed); if (breed !== 'อื่นๆ (กรอกเอง)') setCustomBreed(''); }}
-                    style={{
-                      padding: '12px 10px',
-                      borderRadius: 12,
-                      border: selectedBreed === breed ? '2px solid #FF6B6B' : '2px solid #E8E8E8',
-                      background: selectedBreed === breed ? '#FFF0F0' : 'white',
-                      fontSize: 13,
-                      fontWeight: selectedBreed === breed ? 600 : 400,
-                      color: selectedBreed === breed ? '#FF6B6B' : '#555',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    {breed}
-                  </button>
-                ))}
-              </div>
-
-              {/* Custom breed input */}
-              {selectedBreed === 'อื่นๆ (กรอกเอง)' && (
-                <input
-                  type="text"
-                  placeholder="พิมพ์สายพันธุ์..."
-                  ref={customBreedRef}
-                  defaultValue={customBreed}
-                  onBlur={(e) => setCustomBreed(e.target.value)}
-                  onKeyPress={(e) => { if (e.key === 'Enter') goNextStep(); }}
-                  style={{
-                    ...styles.input,
-                    fontSize: 14,
-                    textAlign: 'center',
-                    marginBottom: 12
-                  }}
-                />
-              )}
-
-              <button 
-                onClick={goNextStep}
-                style={{ ...styles.btn, ...styles.btnPrimary, marginTop: 8 }}
-              >
-                ถัดไป →
-              </button>
-            </div>
-          )}
-
-          {/* Step 2: Owner Name */}
-          {leadStep === 2 && (
-            <div style={{ animation: 'fadeIn 0.3s ease' }}>
-              <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                <div style={{ fontSize: 56, marginBottom: 12 }}>👤</div>
-                <h2 style={{ fontSize: 22, fontWeight: 800, color: '#333', marginBottom: 8 }}>
-                  คุณชื่ออะไร?
-                </h2>
-                <p style={{ fontSize: 13, color: '#888' }}>
-                  พ่อ/แม่ของ {leadInfo.dogName} ({selectedBreed === 'อื่นๆ (กรอกเอง)' ? customBreed : selectedBreed})
-                </p>
-              </div>
-
-              <input
                 type="text"
-                placeholder="พิมพ์ชื่อคุณ..."
-                ref={ownerNameRef}
-                defaultValue={leadInfo.name}
-                onBlur={(e) => setLeadInfo({...leadInfo, name: e.target.value})}
-                onKeyPress={(e) => { if (e.key === 'Enter') goNextStep(); }}
-                style={{
-                  ...styles.input,
-                  fontSize: 18,
-                  textAlign: 'center',
-                  marginBottom: 20
-                }}
+                placeholder="ชื่อน้องหมา"
+                value={leadInfo.dogName}
+                onChange={(e) => setLeadInfo({...leadInfo, dogName: e.target.value})}
+                style={styles.input}
               />
-
-              <button 
-                onClick={goNextStep}
-                style={{ ...styles.btn, ...styles.btnPrimary }}
-              >
+              <button onClick={() => leadInfo.dogName && setStep(2)}
+                disabled={!leadInfo.dogName}
+                style={{...styles.btn, ...styles.btnPrimary, opacity: leadInfo.dogName ? 1 : 0.5}}>
                 ถัดไป →
               </button>
             </div>
           )}
-
-          {/* Step 3: Email + Phone */}
-          {leadStep === 3 && (
-            <div style={{ animation: 'fadeIn 0.3s ease' }}>
-              <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                <div style={{ fontSize: 56, marginBottom: 12 }}>📧</div>
-                <h2 style={{ fontSize: 22, fontWeight: 800, color: '#333', marginBottom: 8 }}>
-                  ส่งผล DNA ไปที่ไหนดี?
-                </h2>
-                <p style={{ fontSize: 13, color: '#888' }}>
-                  เพื่อรับผลวิเคราะห์ของ {leadInfo.dogName}
-                </p>
-              </div>
-
-              {/* Email (Required) */}
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 6, display: 'block' }}>
-                  Email <span style={{ color: '#FF6B6B' }}>*</span>
-                </label>
-                <input
-                  type="email"
-                  placeholder="example@email.com"
-                  ref={emailRef}
-                  defaultValue={leadInfo.email || ''}
-                  onBlur={(e) => setLeadInfo({...leadInfo, email: e.target.value})}
-                  style={{
-                    ...styles.input,
-                    fontSize: 16,
-                    textAlign: 'center'
-                  }}
-                />
-              </div>
-
-              {/* Phone (Optional) */}
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 6, display: 'block' }}>
-                  เบอร์โทรศัพท์ <span style={{ color: '#999', fontWeight: 400 }}>(ไม่บังคับ)</span>
-                </label>
-                <input
-                  type="tel"
-                  placeholder="08X-XXX-XXXX"
-                  ref={phoneRef}
-                  defaultValue={leadInfo.contact}
-                  onBlur={(e) => setLeadInfo({...leadInfo, contact: e.target.value})}
-                  style={{
-                    ...styles.input,
-                    fontSize: 16,
-                    textAlign: 'center'
-                  }}
-                />
-                <div style={{ fontSize: 11, color: '#999', marginTop: 6, textAlign: 'center' }}>
-                  💬 เพื่อรับ tips ดูแลน้องหมาผ่าน LINE
-                </div>
-              </div>
-
-              {/* Preview Card */}
-              <div style={{
-                background: 'linear-gradient(135deg, #FFF5F5, #FFF0E6)',
-                borderRadius: 16,
-                padding: 16,
-                marginBottom: 20,
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>พร้อมดูผลของ</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#333' }}>
-                  🐕 {leadInfo.dogName}
-                </div>
-                <div style={{ fontSize: 12, color: '#888' }}>
-                  {selectedBreed === 'อื่นๆ (กรอกเอง)' ? customBreed : selectedBreed} • เจ้าของ: {leadInfo.name}
-                </div>
-              </div>
-
-              <button 
-                onClick={goNextStep}
-                style={{ ...styles.btn, ...styles.btnPrimary, fontSize: 18 }}
+          
+          {step === 2 && (
+            <div style={styles.card}>
+              <h3 style={{ color: "white", fontSize: "18px", marginBottom: "16px" }}>🦴 น้อง {leadInfo.dogName} เป็นพันธุ์อะไร?</h3>
+              <select
+                value={leadInfo.breed}
+                onChange={(e) => setLeadInfo({...leadInfo, breed: e.target.value})}
+                style={{...styles.input, cursor: "pointer"}}
               >
-                🧬 ดูผล DNA บุคลิกภาพ!
-              </button>
-
-              <div style={{ textAlign: 'center', marginTop: 16, fontSize: 11, color: '#999' }}>
-                🔒 ข้อมูลปลอดภัย ไม่แชร์กับบุคคลที่ 3
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // Badge Preview Modal
-  const BadgePreviewModal = () => {
-    const topic = selectedBadge;
-    const isCompleted = isTopicCompleted(topic.id);
-    const isUnlocked = isTopicUnlocked(topic.id);
-    const result = completedTopics[topic.id];
-
-    return (
-      <div style={styles.modal} onClick={() => setShowBadgeModal(false)}>
-        <div style={{ ...styles.card, maxWidth: 380, width: '100%' }} onClick={(e) => e.stopPropagation()}>
-          {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-            <div style={{
-              width: 70, height: 70, borderRadius: 20,
-              background: isCompleted ? `linear-gradient(135deg, ${topic.color}, ${topic.color}CC)` : 
-                         isUnlocked ? `${topic.color}22` : '#F0F0F0',
-              border: `3px solid ${isCompleted ? topic.color : isUnlocked ? topic.color : '#E0E0E0'}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32,
-              boxShadow: isCompleted ? `0 8px 25px ${topic.color}44` : 'none'
-            }}>
-              {isCompleted ? '✓' : isUnlocked ? topic.emoji : '🔒'}
-            </div>
-            <button onClick={() => setShowBadgeModal(false)} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#999' }}>×</button>
-          </div>
-
-          {/* Topic Info */}
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 24 }}>{topic.emoji}</span>
-              <h2 style={{ fontSize: 22, fontWeight: 700, color: '#333', margin: 0 }}>{topic.name}</h2>
-            </div>
-            <div style={{
-              display: 'inline-block', padding: '4px 12px',
-              background: `${topic.color}22`, borderRadius: 12,
-              fontSize: 12, color: topic.color, fontWeight: 600
-            }}>
-              {topic.dimensionEmoji} {topic.dimension} Dimension
-            </div>
-          </div>
-
-          {/* Description */}
-          <p style={{ fontSize: 14, color: '#666', lineHeight: 1.6, marginBottom: 20 }}>
-            {topic.fullDesc}
-          </p>
-
-          {/* Science Fact */}
-          <div style={{ background: '#F8F9FA', borderRadius: 16, padding: 16, marginBottom: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <span>🔬</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: topic.color }}>Science Fact</span>
-            </div>
-            <p style={{ fontSize: 13, color: '#666', lineHeight: 1.6, margin: 0 }}>{topic.scienceFact}</p>
-            <div style={{ fontSize: 10, color: '#999', marginTop: 8 }}>📚 {topic.reference}</div>
-          </div>
-
-          {/* Stats */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginBottom: 20, color: '#888', fontSize: 13 }}>
-            <span>📝 {topic.questions} คำถาม</span>
-            <span>⏱️ {topic.duration}</span>
-          </div>
-
-          {/* Result (if completed) */}
-          {isCompleted && result && (
-            <div style={{
-              background: `linear-gradient(135deg, ${topic.color}11, ${topic.color}22)`,
-              borderRadius: 16, padding: 16, marginBottom: 20,
-              border: `2px solid ${topic.color}44`
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontSize: 12, color: '#888' }}>คะแนนของคุณ</div>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: topic.color }}>{result.score}%</div>
-                </div>
-                <div style={{ fontSize: 40 }}>{getPersonality(result.score, topic.id).emoji}</div>
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#333', marginTop: 8 }}>
-                {getPersonality(result.score, topic.id).type}
-              </div>
-            </div>
-          )}
-
-          {/* Action Button */}
-          {isCompleted ? (
-            <button
-              onClick={() => {
-                setViewingResult(topic);
-                setShowBadgeModal(false);
-                setScreen('result');
-                setRevealStep(5);
-              }}
-              style={{ ...styles.btn, background: topic.color, color: 'white' }}
-            >
-              📊 ดูผลลัพธ์เต็ม
-            </button>
-          ) : isUnlocked ? (
-            <button
-              onClick={() => {
-                setCurrentTopic(topic);
-                setShowBadgeModal(false);
-                setScreen('topic-intro');
-              }}
-              style={{ ...styles.btn, ...styles.btnPrimary }}
-            >
-              🚀 เริ่มทำ Quiz
-            </button>
-          ) : (
-            <button style={{ ...styles.btn, background: '#E0E0E0', color: '#999', cursor: 'not-allowed' }}>
-              🔒 ทำ Topic ก่อนหน้าให้ครบก่อน
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // Result Screen
-  const ResultScreen = () => {
-    const topicToShow = viewingResult || currentTopic;
-    const score = viewingResult ? completedTopics[viewingResult.id]?.score : getScore();
-    const personality = getPersonality(score, topicToShow.id);
-    const dogName = leadInfo.dogName || 'น้องหมา';
-
-    return (
-      <div style={{...styles.container, background: 'linear-gradient(180deg, #0f0f23 0%, #1a1a3e 100%)'}}>
-        <div style={{...styles.glowOrb, width: 400, height: 400, background: topicToShow.color, top: -100, left: '50%', transform: 'translateX(-50%)'}} />
-        
-        <div style={styles.content}>
-          {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-            <button onClick={() => { setViewingResult(null); setScreen('dashboard'); }} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: 'white' }}>←</button>
-            <button style={{
-              background: 'linear-gradient(135deg, #FF6B6B, #FF8E53)',
-              color: 'white', border: 'none', padding: '10px 20px', borderRadius: 20,
-              fontSize: 14, fontWeight: 600, cursor: 'pointer'
-            }}>📤 แชร์ผล</button>
-          </div>
-
-          {/* Topic Badge */}
-          <div style={{ textAlign: 'center', marginBottom: 16 }}>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '8px 16px', background: `${topicToShow.color}22`,
-              borderRadius: 20, border: `2px solid ${topicToShow.color}`
-            }}>
-              <span style={{ fontSize: 20 }}>{topicToShow.emoji}</span>
-              <span style={{ fontSize: 14, fontWeight: 600, color: topicToShow.color }}>{topicToShow.name}</span>
-            </div>
-          </div>
-
-          {/* Personality Reveal */}
-          <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <div style={{ opacity: revealStep >= 1 ? 1 : 0, transform: revealStep >= 1 ? 'scale(1)' : 'scale(0.5)', transition: 'all 0.8s ease' }}>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>{dogName} คือ...</div>
-              <div style={{ fontSize: 80, marginBottom: 8, filter: 'drop-shadow(0 0 30px rgba(255,215,0,0.5))' }}>{personality.emoji}</div>
-              <h1 style={{ fontSize: 36, fontWeight: 800, background: 'linear-gradient(135deg, #FFD700, #FF6B6B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: 8 }}>
-                {personality.type}
-              </h1>
-              <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.8)', fontStyle: 'italic' }}>"{personality.tagline}"</div>
-            </div>
-          </div>
-
-          {/* Score Ring */}
-          <div style={{ opacity: revealStep >= 2 ? 1 : 0, transform: revealStep >= 2 ? 'translateY(0)' : 'translateY(20px)', transition: 'all 0.8s ease' }}>
-            <div style={{ ...styles.darkCard, display: 'flex', alignItems: 'center', gap: 20, marginBottom: 16 }}>
-              <div style={{
-                width: 80, height: 80, borderRadius: '50%',
-                background: `conic-gradient(${topicToShow.color} ${score}%, rgba(255,255,255,0.1) ${score}%)`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: `0 0 30px ${topicToShow.color}44`
-              }}>
-                <div style={{ width: 60, height: 60, borderRadius: '50%', background: '#1a1a3e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: 'white' }}>{score}%</div>
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>{topicToShow.dimensionEmoji} {topicToShow.dimension}</div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: 'white' }}>Oxytocin: {personality.oxytocin}%</div>
-                <div style={{ fontSize: 12, color: topicToShow.color, marginTop: 4 }}>⭐ {personality.rarity}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Description */}
-          <div style={{ opacity: revealStep >= 3 ? 1 : 0, transform: revealStep >= 3 ? 'translateY(0)' : 'translateY(20px)', transition: 'all 0.8s ease' }}>
-            <div style={{ ...styles.darkCard, marginBottom: 16 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: topicToShow.color, marginBottom: 12 }}>🧬 DNA Analysis</div>
-              <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.85)', lineHeight: 1.8, margin: 0 }}>{personality.description}</p>
-            </div>
-          </div>
-
-          {/* Traits */}
-          <div style={{ opacity: revealStep >= 4 ? 1 : 0, transform: revealStep >= 4 ? 'translateY(0)' : 'translateY(20px)', transition: 'all 0.8s ease' }}>
-            <div style={{ ...styles.darkCard, marginBottom: 16 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#4ECDC4', marginBottom: 12 }}>✨ บุคลิกภาพเด่น</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {personality.traits.map((trait, i) => (
-                  <span key={i} style={{
-                    padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                    background: 'rgba(78,205,196,0.15)', color: '#4ECDC4', border: '1px solid rgba(78,205,196,0.3)'
-                  }}>{trait}</span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* NEW: Story Insight */}
-          <div style={{ opacity: revealStep >= 5 ? 1 : 0, transform: revealStep >= 5 ? 'translateY(0)' : 'translateY(20px)', transition: 'all 0.8s ease' }}>
-            {personality.storyInsight && (
-              <div style={{ ...styles.darkCard, marginBottom: 16, background: 'linear-gradient(135deg, rgba(155,89,182,0.15), rgba(142,68,173,0.1))', border: '1px solid rgba(155,89,182,0.3)' }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#9B59B6', marginBottom: 12 }}>🎭 Story Insight</div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: 'white', marginBottom: 10 }}>{personality.storyInsight.title}</div>
-                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 1.8, margin: 0 }}>{personality.storyInsight.content}</p>
-              </div>
-            )}
-
-            {/* NEW: Science Secret */}
-            {personality.scienceSecret && (
-              <div style={{ ...styles.darkCard, marginBottom: 16, background: 'linear-gradient(135deg, rgba(52,152,219,0.15), rgba(41,128,185,0.1))', border: '1px solid rgba(52,152,219,0.3)' }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#3498DB', marginBottom: 12 }}>🔬 Science Secret</div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: 'white', marginBottom: 6 }}>{personality.scienceSecret.title}</div>
-                <div style={{ fontSize: 11, color: '#3498DB', marginBottom: 12, fontFamily: 'monospace' }}>Gene: {personality.scienceSecret.gene}</div>
-                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 1.8, margin: 0 }}>{personality.scienceSecret.content}</p>
-                <div style={{ marginTop: 16, padding: 12, background: 'rgba(52,152,219,0.2)', borderRadius: 12 }}>
-                  <p style={{ fontSize: 12, color: '#3498DB', margin: 0, lineHeight: 1.6 }}>{personality.scienceSecret.funFact}</p>
-                </div>
-              </div>
-            )}
-
-            {/* NEW: How-To Guide */}
-            {personality.howToGuide && (
-              <div style={{ ...styles.darkCard, marginBottom: 16, background: 'linear-gradient(135deg, rgba(46,204,113,0.15), rgba(39,174,96,0.1))', border: '1px solid rgba(46,204,113,0.3)' }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#2ECC71', marginBottom: 16 }}>💡 {personality.howToGuide.title}</div>
-                {personality.howToGuide.tips.map((tip, i) => (
-                  <div key={i} style={{ 
-                    display: 'flex', 
-                    gap: 12, 
-                    marginBottom: i < personality.howToGuide.tips.length - 1 ? 16 : 0,
-                    paddingBottom: i < personality.howToGuide.tips.length - 1 ? 16 : 0,
-                    borderBottom: i < personality.howToGuide.tips.length - 1 ? '1px solid rgba(46,204,113,0.2)' : 'none'
-                  }}>
-                    <div style={{
-                      width: 40, height: 40, borderRadius: 12, flexShrink: 0,
-                      background: 'rgba(46,204,113,0.2)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 18
-                    }}>{tip.icon}</div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'white', marginBottom: 4 }}>{tip.title}</div>
-                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>{tip.desc}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* NEW: Warnings */}
-            {personality.warnings && (
-              <div style={{ ...styles.darkCard, marginBottom: 16, background: 'linear-gradient(135deg, rgba(231,76,60,0.15), rgba(192,57,43,0.1))', border: '1px solid rgba(231,76,60,0.3)' }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#E74C3C', marginBottom: 12 }}>⚠️ {personality.warnings.title}</div>
-                {personality.warnings.items.map((item, i) => (
-                  <div key={i} style={{ 
-                    display: 'flex', 
-                    alignItems: 'flex-start', 
-                    gap: 10, 
-                    marginBottom: i < personality.warnings.items.length - 1 ? 10 : 0 
-                  }}>
-                    <span style={{ color: '#E74C3C', fontSize: 12 }}>•</span>
-                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', lineHeight: 1.5 }}>{item}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* NEW: Recommended Activities */}
-            {personality.activities && (
-              <div style={{ ...styles.darkCard, marginBottom: 16, background: 'linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,193,7,0.1))', border: '1px solid rgba(255,215,0,0.3)' }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#FFD700', marginBottom: 16 }}>🎯 {personality.activities.title}</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  {personality.activities.items.map((item, i) => (
-                    <div key={i} style={{
-                      background: 'rgba(255,215,0,0.1)',
-                      borderRadius: 12,
-                      padding: 12,
-                      textAlign: 'center'
-                    }}>
-                      <div style={{ fontSize: 24, marginBottom: 6 }}>{item.emoji}</div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: 'white', marginBottom: 4 }}>{item.name}</div>
-                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', lineHeight: 1.4 }}>{item.desc}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* CTA */}
-            <div style={{ ...styles.darkCard, textAlign: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>🐾</div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 8 }}>
-                นี่แค่ 1 ใน 12 Tests!
-              </div>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 16 }}>
-                ค้นพบ DNA เพิ่มเติมใน 4 Paw Sequences
-              </div>
-              <button onClick={() => { setViewingResult(null); setScreen('dashboard'); }} style={{ ...styles.btn, ...styles.btnPrimary }}>
-                🧬 ทำ Test ต่อ
-              </button>
-            </div>
-
-            {/* Share Button */}
-            <button style={{ ...styles.btn, ...styles.btnGhost, marginBottom: 24 }}>
-              📤 แชร์ผลให้เพื่อน
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // ─── Auth Screen ──────────────────────────────────────────────────────────
-  const AuthScreen = () => {
-    const emailRef2 = useRef(null);
-    const passRef = useRef(null);
-    const dogNameRef2 = useRef(null);
-    const ownerRef2 = useRef(null);
-
-    return (
-      <div style={styles.container}>
-        <div style={{...styles.glowOrb, width: 300, height: 300, background: '#4ECDC4', top: -100, left: -100}} />
-        <div style={{...styles.glowOrb, width: 250, height: 250, background: '#FF6B6B', bottom: -80, right: -80}} />
-        
-        <div style={styles.content}>
-          {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
-            <button onClick={() => setScreen('landing')} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: 'white' }}>←</button>
-            <div style={{ flex: 1, textAlign: 'center' }}>
-              <span style={{ fontSize: 14, letterSpacing: 3, color: 'rgba(255,255,255,0.5)' }}>🐾 MHA' STORY</span>
-            </div>
-            <div style={{ width: 24 }} />
-          </div>
-
-          <div style={{ ...styles.darkCard }}>
-            {/* Title */}
-            <div style={{ textAlign: 'center', marginBottom: 28 }}>
-              <div style={{ fontSize: 40, marginBottom: 8 }}>🔐</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: 'white', marginBottom: 6 }}>
-                {authMode === 'register' ? 'สร้างบัญชี' : 'เข้าสู่ระบบ'}
-              </div>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
-                {authMode === 'register' ? 'บันทึกผลทดสอบ DNA ของน้องหมา' : 'ดูผลทดสอบและ Dog Profile ของคุณ'}
-              </div>
-            </div>
-
-            {/* Step indicator for register */}
-            {authMode === 'register' && (
-              <div style={{ display: 'flex', gap: 8, marginBottom: 24, justifyContent: 'center' }}>
-                {[1,2].map(s => (
-                  <div key={s} style={{
-                    width: s === authStep ? 32 : 12, height: 8, borderRadius: 4,
-                    background: s <= authStep ? 'linear-gradient(90deg, #FF6B6B, #FFD93D)' : 'rgba(255,255,255,0.15)',
-                    transition: 'all 0.3s'
-                  }} />
-                ))}
-              </div>
-            )}
-
-            {/* Step 1: Credentials */}
-            {authStep === 1 && (
-              <div>
-                <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}>📧 Email</div>
-                  <input
-                    ref={emailRef2}
-                    type="email"
-                    defaultValue={authEmail}
-                    onBlur={e => setAuthEmail(e.target.value)}
-                    placeholder="your@email.com"
-                    style={{
-                      width: '100%', padding: '12px 16px', borderRadius: 12,
-                      border: '1.5px solid rgba(255,255,255,0.15)',
-                      background: 'rgba(255,255,255,0.07)', color: 'white',
-                      fontSize: 15, outline: 'none', boxSizing: 'border-box'
-                    }}
-                  />
-                </div>
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}>🔑 Password</div>
-                  <input
-                    ref={passRef}
-                    type="password"
-                    defaultValue={authPassword}
-                    onBlur={e => setAuthPassword(e.target.value)}
-                    placeholder={authMode === 'register' ? 'ตั้งรหัสผ่าน (6+ ตัวอักษร)' : 'รหัสผ่าน'}
-                    style={{
-                      width: '100%', padding: '12px 16px', borderRadius: 12,
-                      border: '1.5px solid rgba(255,255,255,0.15)',
-                      background: 'rgba(255,255,255,0.07)', color: 'white',
-                      fontSize: 15, outline: 'none', boxSizing: 'border-box'
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Step 2: Dog Profile (Register only) */}
-            {authMode === 'register' && authStep === 2 && (
-              <div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 16, textAlign: 'center' }}>
-                  บอกเราเพิ่มเติมเกี่ยวกับน้องหมาของคุณ 🐕
-                </div>
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}>ชื่อน้องหมา</div>
-                  <input
-                    ref={dogNameRef2}
-                    type="text"
-                    defaultValue={leadInfo.dogName}
-                    onBlur={e => setLeadInfo({...leadInfo, dogName: e.target.value})}
-                    placeholder="เช่น บัตเตอร์, ช็อกโกแลต"
-                    style={{
-                      width: '100%', padding: '12px 16px', borderRadius: 12,
-                      border: '1.5px solid rgba(255,255,255,0.15)',
-                      background: 'rgba(255,255,255,0.07)', color: 'white',
-                      fontSize: 15, outline: 'none', boxSizing: 'border-box'
-                    }}
-                  />
-                </div>
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}>ชื่อเจ้าของ</div>
-                  <input
-                    ref={ownerRef2}
-                    type="text"
-                    defaultValue={leadInfo.name}
-                    onBlur={e => setLeadInfo({...leadInfo, name: e.target.value})}
-                    placeholder="ชื่อของคุณ"
-                    style={{
-                      width: '100%', padding: '12px 16px', borderRadius: 12,
-                      border: '1.5px solid rgba(255,255,255,0.15)',
-                      background: 'rgba(255,255,255,0.07)', color: 'white',
-                      fontSize: 15, outline: 'none', boxSizing: 'border-box'
-                    }}
-                  />
-                </div>
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}>สายพันธุ์</div>
-                  <select
-                    value={selectedBreed}
-                    onChange={e => setSelectedBreed(e.target.value)}
-                    style={{
-                      width: '100%', padding: '12px 16px', borderRadius: 12,
-                      border: '1.5px solid rgba(255,255,255,0.15)',
-                      background: 'rgba(40,40,80,0.9)', color: selectedBreed ? 'white' : 'rgba(255,255,255,0.4)',
-                      fontSize: 14, outline: 'none', boxSizing: 'border-box'
-                    }}
-                  >
-                    <option value="">เลือกสายพันธุ์</option>
-                    {dogBreeds.map(b => <option key={b} value={b} style={{ background: '#1a1a2e' }}>{b}</option>)}
-                  </select>
-                </div>
-              </div>
-            )}
-
-            {/* Error */}
-            {authError && (
-              <div style={{ background: 'rgba(255,107,107,0.15)', border: '1px solid rgba(255,107,107,0.4)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: '#FF8E8E' }}>
-                {authError}
-              </div>
-            )}
-
-            {/* Submit Button */}
-            <button
-              onClick={handleAuthSubmit}
-              disabled={authLoading}
-              style={{ ...styles.btn, ...styles.btnPrimary, opacity: authLoading ? 0.7 : 1 }}
-            >
-              {authLoading ? '⏳ กำลังดำเนินการ...' : 
-               authMode === 'register' && authStep === 1 ? 'ถัดไป →' :
-               authMode === 'register' ? '✨ สร้างบัญชี' : '🚀 เข้าสู่ระบบ'}
-            </button>
-
-            {/* Skip Supabase warning */}
-            {!supabase && (
-              <div style={{ marginTop: 12, fontSize: 11, color: 'rgba(255,200,100,0.8)', textAlign: 'center', lineHeight: 1.6 }}>
-                ⚠️ ยังไม่ได้ตั้งค่า Supabase<br/>
-                <span style={{ color: 'rgba(255,255,255,0.4)' }}>npm install @supabase/supabase-js<br/>ตั้งค่า .env.local ก่อนนะคะ</span>
-              </div>
-            )}
-
-            {/* Toggle login/register */}
-            <div style={{ textAlign: 'center', marginTop: 16, fontSize: 13 }}>
-              {authMode === 'login' ? (
-                <span style={{ color: 'rgba(255,255,255,0.5)' }}>
-                  ยังไม่มีบัญชี?{' '}
-                  <span style={{ color: '#FFD93D', cursor: 'pointer', fontWeight: 600 }}
-                    onClick={() => { setAuthMode('register'); setAuthStep(1); setAuthError(''); }}>
-                    สมัครสมาชิก
-                  </span>
-                </span>
-              ) : (
-                <span style={{ color: 'rgba(255,255,255,0.5)' }}>
-                  มีบัญชีแล้ว?{' '}
-                  <span style={{ color: '#4ECDC4', cursor: 'pointer', fontWeight: 600 }}
-                    onClick={() => { setAuthMode('login'); setAuthStep(1); setAuthError(''); }}>
-                    เข้าสู่ระบบ
-                  </span>
-                </span>
+                <option value="">เลือกสายพันธุ์</option>
+                {BREEDS.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+              {leadInfo.breed === "อื่นๆ (กรอกเอง)" && (
+                <input
+                  ref={customBreedRef}
+                  type="text"
+                  placeholder="กรอกสายพันธุ์"
+                  value={leadInfo.customBreed}
+                  onChange={(e) => setLeadInfo({...leadInfo, customBreed: e.target.value})}
+                  style={styles.input}
+                />
               )}
+              <button onClick={() => leadInfo.breed && setStep(3)}
+                disabled={!leadInfo.breed}
+                style={{...styles.btn, ...styles.btnPrimary, opacity: leadInfo.breed ? 1 : 0.5}}>
+                ถัดไป →
+              </button>
             </div>
-          </div>
+          )}
+          
+          {step === 3 && (
+            <div style={styles.card}>
+              <h3 style={{ color: "white", fontSize: "18px", marginBottom: "16px" }}>🎂 น้อง {leadInfo.dogName} อายุเท่าไหร่?</h3>
+              <select
+                value={leadInfo.age}
+                onChange={(e) => setLeadInfo({...leadInfo, age: e.target.value})}
+                style={{...styles.input, cursor: "pointer"}}
+              >
+                <option value="">เลือกช่วงอายุ</option>
+                <option value="puppy">Puppy (0-1 ปี)</option>
+                <option value="young">Young (1-3 ปี)</option>
+                <option value="adult">Adult (3-7 ปี)</option>
+                <option value="senior">Senior (7+ ปี)</option>
+              </select>
+              <button onClick={() => leadInfo.age && setScreen("dashboard")}
+                disabled={!leadInfo.age}
+                style={{...styles.btn, ...styles.btnPrimary, opacity: leadInfo.age ? 1 : 0.5}}>
+                🧬 เริ่มถอดรหัส DNA!
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
   };
-  // ──────────────────────────────────────────────────────────────────────────
+
+  // Auth Screen
+  const AuthScreen = () => (
+    <div style={styles.container}>
+      <div style={{...styles.glowOrb, width: 200, height: 200, background: "#4D96FF", top: 100, right: -50}} />
+      <div style={styles.content}>
+        <button onClick={() => setScreen("landing")}
+          style={{ background: "none", border: "none", color: "white", fontSize: "24px", cursor: "pointer", marginBottom: "20px" }}>
+          ←
+        </button>
+        
+        <div style={styles.card}>
+          <h3 style={{ color: "white", fontSize: "20px", marginBottom: "20px", textAlign: "center" }}>
+            {authMode === "login" ? "🔐 Login" : "📝 Register"}
+          </h3>
+          
+          {authError && (
+            <div style={{ background: "rgba(255,100,100,0.2)", padding: "10px", borderRadius: "8px", marginBottom: "16px", color: "#FF6B6B", fontSize: "13px" }}>
+              {authError}
+            </div>
+          )}
+          
+          <input
+            ref={emailRef}
+            type="email"
+            placeholder="Email"
+            value={authEmail}
+            onChange={(e) => setAuthEmail(e.target.value)}
+            style={styles.input}
+          />
+          <input
+            ref={passwordRef}
+            type="password"
+            placeholder="Password"
+            value={authPassword}
+            onChange={(e) => setAuthPassword(e.target.value)}
+            style={styles.input}
+          />
+          
+          <button onClick={authMode === "login" ? handleSignIn : handleSignUp}
+            style={{...styles.btn, ...styles.btnPrimary}}>
+            {authMode === "login" ? "Login" : "Register"}
+          </button>
+          
+          <button onClick={() => setAuthMode(authMode === "login" ? "register" : "login")}
+            style={{...styles.btn, ...styles.btnSecondary, marginTop: "12px"}}>
+            {authMode === "login" ? "ยังไม่มีบัญชี? Register" : "มีบัญชีแล้ว? Login"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
 
   // Dashboard Screen — DNA Helix Milestone
   const DashboardScreen = () => {
     const completedCount = Object.keys(completedTopics).length;
-
-    // DNA Helix sinusoidal layout
-    const maxRungWidth = 220;
-    const minRungWidth = 40;
+    const dimScores = getDimensionScores();
 
     return (
       <div style={styles.container}>
-        <div style={{...styles.glowOrb, width: 300, height: 300, background: '#FF6B6B', top: -100, right: -100}} />
-        <div style={{...styles.glowOrb, width: 200, height: 200, background: '#4ECDC4', bottom: 100, left: -80}} />
+        <div style={{...styles.glowOrb, width: 300, height: 300, background: "#FF6B9D", top: -100, right: -100}} />
+        <div style={{...styles.glowOrb, width: 200, height: 200, background: "#4ECDC4", bottom: 100, left: -80}} />
         
         <div style={styles.content}>
-          {/* Header with Back + Auth */}
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-            <button onClick={() => setScreen('landing')} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: 'white' }}>←</button>
-            <div style={{ flex: 1, textAlign: 'center' }}>
-              <span style={{ fontSize: 14, letterSpacing: 3, color: 'rgba(255,255,255,0.5)' }}>🐾 MHA' STORY</span>
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
+            <button onClick={() => setScreen("landing")} style={{ background: "none", border: "none", fontSize: "24px", cursor: "pointer", color: "white" }}>←</button>
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <span style={{ fontSize: "14px", letterSpacing: "3px", color: "rgba(255,255,255,0.5)" }}>🐾 MHA' STORY</span>
             </div>
             {user ? (
-              <button onClick={handleSignOut} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer' }} title="ออกจากระบบ">🚪</button>
+              <button onClick={handleSignOut} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer" }} title="ออกจากระบบ">🚪</button>
             ) : (
-              <button onClick={() => { setAuthMode('login'); setAuthStep(1); setScreen('auth'); }} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '4px 8px', fontSize: 11, color: 'rgba(255,255,255,0.6)', cursor: 'pointer' }}>Login</button>
+              <button onClick={() => { setAuthMode("login"); setScreen("auth"); }} 
+                style={{ background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", padding: "4px 8px", fontSize: "11px", color: "rgba(255,255,255,0.6)", cursor: "pointer" }}>
+                Login
+              </button>
             )}
           </div>
 
-          {/* Save Status Toast */}
+          {/* Save Status */}
           {saveMsg && (
-            <div style={{ textAlign: 'center', marginBottom: 8, fontSize: 13, color: saveMsg.includes('✅') ? '#2ECC71' : '#FF6B6B' }}>
+            <div style={{ textAlign: "center", marginBottom: "8px", fontSize: "13px", color: saveMsg.includes("✅") ? "#2ECC71" : "#FF6B6B" }}>
               {saveMsg}
             </div>
           )}
 
           {/* Profile Header */}
-          <div style={{ textAlign: 'center', marginBottom: 16 }}>
-            <div style={{ fontSize: 48, marginBottom: 8 }}>🐕</div>
-            <h2 style={{ fontSize: 22, fontWeight: 700, color: 'white', marginBottom: 4 }}>
-              {leadInfo.dogName || 'น้องหมา'}'s DNA Profile
+          <div style={{ textAlign: "center", marginBottom: "20px" }}>
+            <div style={{ fontSize: "48px", marginBottom: "8px" }}>🐕</div>
+            <h2 style={{ fontSize: "22px", fontWeight: "700", color: "white", marginBottom: "4px" }}>
+              {leadInfo.dogName || "น้องหมา"}'s DNA Profile
             </h2>
-            <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>
-              Level {Math.floor(completedCount / 3) + 1} ⭐ • {completedCount}/12 Tests Completed
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: "13px" }}>
+              Level {Math.floor(completedCount / 3) + 1} ⭐ • {completedCount}/12 Tests
             </div>
             {user && (
-              <div style={{ fontSize: 11, color: 'rgba(100,255,180,0.7)', marginTop: 4 }}>
+              <div style={{ fontSize: "11px", color: "rgba(100,255,180,0.7)", marginTop: "4px" }}>
                 ☁️ Saved — {user.email}
               </div>
             )}
-            {!user && completedCount > 0 && (
-              <button
-                onClick={() => { setAuthMode('register'); setAuthStep(1); setScreen('auth'); }}
-                style={{ marginTop: 8, padding: '6px 14px', borderRadius: 20, border: '1px solid rgba(255,211,61,0.5)', background: 'rgba(255,211,61,0.1)', color: '#FFD93D', fontSize: 12, cursor: 'pointer' }}
-              >
-                💾 บันทึกผลด้วย Account
-              </button>
-            )}
           </div>
 
-          {/* Progress Bar */}
-          <div style={{ marginBottom: 28 }}>
-            <div style={{ height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{
-                width: `${(completedCount / 12) * 100}%`, height: '100%',
-                background: 'linear-gradient(90deg, #FF6B6B, #FFD93D, #4ECDC4)',
-                borderRadius: 4, transition: 'width 0.5s ease'
-              }} />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
-              <span>0%</span>
-              <span style={{ color: 'white', fontWeight: 600 }}>{Math.round((completedCount / 12) * 100)}% Complete</span>
-              <span>100%</span>
-            </div>
-          </div>
-
-          {/* ─── DNA HELIX MILESTONE ─── */}
-          <div style={{ marginBottom: 28 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'white', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-              🧬 DNA Helix Milestones
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: 400 }}>Tap to view</span>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-              {allTopics.map((topic, index) => {
+          {/* DNA Helix Visual */}
+          <div style={{ ...styles.card, padding: "24px", marginBottom: "20px" }}>
+            <h3 style={{ color: "white", fontSize: "16px", marginBottom: "16px", textAlign: "center" }}>🧬 DNA Helix Progress</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {allTopics.map((topic, idx) => {
                 const isCompleted = isTopicCompleted(topic.id);
                 const isUnlocked = isTopicUnlocked(topic.id);
-                const pawGroup = islands.find(i => i.topics.includes(topic.id));
-                const isFirstInGroup = pawGroup?.topics[0] === topic.id;
-                const isLastInGroup = pawGroup?.topics[pawGroup.topics.length - 1] === topic.id;
-
-                // Helix wave: 2 full rotations over 12 rungs
-                const angle = (index / 12) * Math.PI * 4;
-                const widthFactor = (Math.sin(angle) + 1) / 2;
-                const rungWidth = Math.round(minRungWidth + (maxRungWidth - minRungWidth) * widthFactor);
-                const isLeftFront = Math.sin(angle) >= 0;
-                const nodeSize = isLeftFront ? 40 : 32;
-                const nodeSize2 = isLeftFront ? 32 : 40;
-
+                const score = completedTopics[topic.id]?.score || 0;
+                const dim = DIMENSIONS[topic.dimension];
+                const offset = Math.sin(idx * 0.5) * 30;
+                
                 return (
-                  <div key={topic.id} style={{ width: '100%' }}>
-                    {/* Paw Group Label */}
-                    {isFirstInGroup && (
-                      <div style={{
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        marginBottom: 10, marginTop: index === 0 ? 0 : 16,
-                        justifyContent: 'center'
-                      }}>
-                        <div style={{ height: 1, flex: 1, background: `linear-gradient(90deg, transparent, ${pawGroup.color}55)` }} />
-                        <div style={{
-                          fontSize: 11, fontWeight: 700, letterSpacing: 2,
-                          color: pawGroup.color, padding: '3px 10px',
-                          border: `1px solid ${pawGroup.color}44`,
-                          borderRadius: 20, background: `${pawGroup.color}11`
-                        }}>
-                          {pawGroup.emoji} {pawGroup.name}
-                        </div>
-                        <div style={{ height: 1, flex: 1, background: `linear-gradient(90deg, ${pawGroup.color}55, transparent)` }} />
-                      </div>
-                    )}
-
-                    {/* Helix Rung Row */}
-                    <div
-                      onClick={() => { setSelectedBadge(topic); setShowBadgeModal(true); }}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        height: 54, cursor: 'pointer',
-                        marginBottom: 2
-                      }}
-                    >
-                      {/* Left Node */}
-                      <div style={{
-                        width: nodeSize, height: nodeSize, borderRadius: '50%', flexShrink: 0,
-                        background: isCompleted
-                          ? `radial-gradient(circle at 35% 35%, ${topic.color}FF, ${topic.color}99)`
-                          : isUnlocked ? `${topic.color}22` : 'rgba(255,255,255,0.07)',
-                        border: `2px solid ${isCompleted ? topic.color : isUnlocked ? `${topic.color}55` : 'rgba(255,255,255,0.12)'}`,
-                        boxShadow: isCompleted ? `0 0 14px ${topic.color}88, 0 0 28px ${topic.color}44` : 'none',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: nodeSize > 36 ? 18 : 14,
-                        filter: isUnlocked ? 'none' : 'grayscale(1) opacity(0.5)',
-                        zIndex: isLeftFront ? 2 : 1,
-                        position: 'relative',
-                        transition: 'all 0.3s'
-                      }}>
-                        {isUnlocked ? topic.emoji : '🔒'}
-                        {isCompleted && (
-                          <div style={{
-                            position: 'absolute', top: -3, right: -3,
-                            width: 14, height: 14, borderRadius: '50%',
-                            background: '#2ECC71', border: '1.5px solid #1a1a2e',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 8, color: 'white', fontWeight: 700
-                          }}>✓</div>
-                        )}
-                      </div>
-
-                      {/* Connecting Rung */}
-                      <div style={{
-                        height: 3, flexShrink: 0,
-                        width: Math.max(rungWidth - nodeSize - nodeSize2 - 4, 6),
-                        background: isCompleted
-                          ? `linear-gradient(90deg, ${topic.color}CC, ${topic.color}55, ${topic.color}CC)`
-                          : 'rgba(255,255,255,0.1)',
-                        borderRadius: 2, position: 'relative'
-                      }}>
-                        <div style={{
-                          position: 'absolute', top: '50%', left: '50%',
-                          transform: 'translate(-50%, -50%)',
-                          fontSize: 9, fontWeight: 700, whiteSpace: 'nowrap',
-                          background: '#1a1a2e', padding: '1px 5px', borderRadius: 4,
-                          color: isCompleted ? topic.color : 'rgba(255,255,255,0.3)',
-                          border: `1px solid ${isCompleted ? topic.color + '55' : 'rgba(255,255,255,0.08)'}`
-                        }}>
-                          {isCompleted ? `${completedTopics[topic.id]?.score || 0}%` : `T${topic.id}`}
-                        </div>
-                      </div>
-
-                      {/* Right Node */}
-                      <div style={{
-                        width: nodeSize2, height: nodeSize2, borderRadius: '50%', flexShrink: 0,
-                        background: isCompleted
-                          ? `radial-gradient(circle at 65% 35%, ${topic.color}BB, ${topic.color}66)`
-                          : isUnlocked ? `${topic.color}15` : 'rgba(255,255,255,0.04)',
-                        border: `2px solid ${isCompleted ? `${topic.color}99` : isUnlocked ? `${topic.color}33` : 'rgba(255,255,255,0.08)'}`,
-                        boxShadow: isCompleted ? `0 0 10px ${topic.color}55` : 'none',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 9, fontWeight: 700,
-                        color: isCompleted ? 'white' : 'rgba(255,255,255,0.3)',
-                        filter: isUnlocked ? 'none' : 'opacity(0.4)',
-                        zIndex: isLeftFront ? 1 : 2,
-                        transition: 'all 0.3s'
-                      }}>
-                        {topic.dimension}
+                  <div key={topic.id} style={{ 
+                    display: "flex", alignItems: "center", gap: "12px",
+                    paddingLeft: `${50 + offset}px`, transition: "all 0.3s"
+                  }}>
+                    <div style={{
+                      width: "40px", height: "40px", borderRadius: "50%",
+                      background: isCompleted ? dim.color : isUnlocked ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.05)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: "18px", border: `2px solid ${isCompleted ? dim.color : "rgba(255,255,255,0.1)"}`,
+                      cursor: isUnlocked ? "pointer" : "default",
+                      opacity: isUnlocked ? 1 : 0.4,
+                      boxShadow: isCompleted ? `0 0 20px ${dim.color}50` : "none"
+                    }} onClick={() => isUnlocked && !isCompleted && startQuiz(topic)}>
+                      {isCompleted ? "✓" : topic.emoji}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: "white", fontSize: "13px", fontWeight: "600" }}>{topic.title}</div>
+                      <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "11px" }}>
+                        {isCompleted ? `${score}% — ${completedTopics[topic.id]?.personality}` : topic.subtitle}
                       </div>
                     </div>
-
-                    {/* Vertical strand connector between rungs (within same paw group) */}
-                    {!isLastInGroup && (
-                      <div style={{
-                        display: 'flex', justifyContent: 'center',
-                        height: 8, gap: rungWidth - 8
-                      }}>
-                        <div style={{ width: 2, background: isCompleted ? `${topic.color}55` : 'rgba(255,255,255,0.08)', borderRadius: 1 }} />
-                        <div style={{ width: 2, background: isCompleted ? `${topic.color}33` : 'rgba(255,255,255,0.05)', borderRadius: 1 }} />
-                      </div>
-                    )}
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Quick Action */}
+          {/* Dimension Bars */}
+          <div style={{ ...styles.card, padding: "20px" }}>
+            <h3 style={{ color: "white", fontSize: "16px", marginBottom: "16px" }}>📊 Dimension Scores</h3>
+            {Object.entries(DIMENSIONS).map(([key, dim]) => (
+              <div key={key} style={{ marginBottom: "12px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                  <span style={{ color: "white", fontSize: "12px" }}>{dim.icon} {dim.name}</span>
+                  <span style={{ color: dim.color, fontSize: "12px" }}>{dimScores[key] || 0}%</span>
+                </div>
+                <div style={{ height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
+                  <div style={{ width: `${dimScores[key] || 0}%`, height: "100%", background: dim.color, borderRadius: "3px", transition: "width 0.5s" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA */}
           {completedCount < 12 && (
             <button
               onClick={() => {
-                const nextTopic = allTopics.find(t => isTopicUnlocked(t.id) && !isTopicCompleted(t.id));
-                if (nextTopic) {
-                  setCurrentTopic(nextTopic);
-                  setScreen('topic-intro');
-                }
+                const next = allTopics.find(t => isTopicUnlocked(t.id) && !isTopicCompleted(t.id));
+                if (next) startQuiz(next);
               }}
-              style={{ ...styles.btn, ...styles.btnPrimary }}
+              style={{ ...styles.btn, ...styles.btnPrimary, marginTop: "16px" }}
             >
-              🐾 ทำ Test ถัดไป
+              🧬 ทำ Test ถัดไป
+            </button>
+          )}
+          
+          {completedCount > 0 && (
+            <button onClick={() => setScreen("profile")} style={{ ...styles.btn, ...styles.btnSecondary, marginTop: "12px" }}>
+              👤 ดู Dog Profile
             </button>
           )}
         </div>
@@ -2486,19 +973,563 @@ export default function MhaStoryApp() {
     );
   };
 
+
+  // Dog Profile Screen — DNA Radar + Archetype
+  const DogProfileScreen = () => {
+    const completedCount = Object.keys(completedTopics).length;
+    const dimScores = getDimensionScores();
+    const archetype = getArchetype();
+    const dims = Object.keys(DIMENSIONS);
+    
+    // SVG Radar Chart
+    const radarSize = 200;
+    const center = radarSize / 2;
+    const maxRadius = 80;
+    
+    const getPoint = (index, value) => {
+      const angle = (Math.PI * 2 * index) / 5 - Math.PI / 2;
+      const radius = (value / 100) * maxRadius;
+      return {
+        x: center + radius * Math.cos(angle),
+        y: center + radius * Math.sin(angle)
+      };
+    };
+    
+    const radarPoints = dims.map((dim, i) => getPoint(i, dimScores[dim] || 0));
+    const radarPath = radarPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") + " Z";
+
+    return (
+      <div style={styles.container}>
+        <div style={{...styles.glowOrb, width: 300, height: 300, background: "#9B59B6", top: -100, left: -100}} />
+        <div style={{...styles.glowOrb, width: 200, height: 200, background: "#6BCB77", bottom: 50, right: -80}} />
+        
+        <div style={styles.content}>
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
+            <button onClick={() => setScreen("dashboard")} style={{ background: "none", border: "none", fontSize: "24px", cursor: "pointer", color: "white" }}>←</button>
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <span style={{ fontSize: "14px", letterSpacing: "3px", color: "rgba(255,255,255,0.5)" }}>🧬 DNA PROFILE</span>
+            </div>
+          </div>
+
+          {/* Profile Header */}
+          <div style={{ textAlign: "center", marginBottom: "20px" }}>
+            <div style={{ fontSize: "56px", marginBottom: "8px" }}>🐕</div>
+            <h2 style={{ fontSize: "24px", fontWeight: "700", color: "white", marginBottom: "4px" }}>
+              {leadInfo.dogName || "น้องหมา"}
+            </h2>
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: "13px" }}>
+              {leadInfo.breed === "อื่นๆ (กรอกเอง)" ? leadInfo.customBreed : leadInfo.breed} • {leadInfo.age}
+            </div>
+          </div>
+
+          {/* DNA Radar Chart */}
+          <div style={{ ...styles.card, padding: "20px", textAlign: "center" }}>
+            <h3 style={{ color: "white", fontSize: "16px", marginBottom: "16px" }}>🧬 DNA Radar</h3>
+            <svg width={radarSize} height={radarSize} style={{ margin: "0 auto", display: "block" }}>
+              {/* Grid */}
+              {[20, 40, 60, 80, 100].map(v => (
+                <polygon key={v}
+                  points={dims.map((_, i) => {
+                    const p = getPoint(i, v);
+                    return `${p.x},${p.y}`;
+                  }).join(" ")}
+                  fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1"
+                />
+              ))}
+              {/* Axes */}
+              {dims.map((dim, i) => {
+                const p = getPoint(i, 100);
+                return (
+                  <g key={dim}>
+                    <line x1={center} y1={center} x2={p.x} y2={p.y} stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+                    <text x={getPoint(i, 115).x} y={getPoint(i, 115).y} fill={DIMENSIONS[dim].color} fontSize="10" textAnchor="middle" dominantBaseline="middle">
+                      {DIMENSIONS[dim].icon}
+                    </text>
+                  </g>
+                );
+              })}
+              {/* Data */}
+              <path d={radarPath} fill="rgba(255,107,157,0.3)" stroke="#FF6B9D" strokeWidth="2" />
+              {radarPoints.map((p, i) => (
+                <circle key={i} cx={p.x} cy={p.y} r="4" fill={DIMENSIONS[dims[i]].color} />
+              ))}
+            </svg>
+            
+            {/* Legend */}
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "8px", marginTop: "16px" }}>
+              {dims.map(dim => (
+                <div key={dim} style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px" }}>
+                  <span style={{ color: DIMENSIONS[dim].color }}>{DIMENSIONS[dim].icon}</span>
+                  <span style={{ color: "rgba(255,255,255,0.6)" }}>{dimScores[dim] || 0}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Archetype */}
+          {archetype && (
+            <div style={{ ...styles.card, padding: "20px", background: `linear-gradient(135deg, ${DIMENSIONS[archetype.primary].color}20, ${DIMENSIONS[archetype.secondary].color}20)` }}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "32px", marginBottom: "8px" }}>🏆</div>
+                <h3 style={{ color: "white", fontSize: "18px", fontWeight: "700", marginBottom: "4px" }}>
+                  {archetype.name}
+                </h3>
+                <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "13px", marginBottom: "12px" }}>
+                  {archetype.desc}
+                </p>
+                <div style={{ display: "flex", justifyContent: "center", gap: "16px", fontSize: "12px" }}>
+                  <span style={{ color: DIMENSIONS[archetype.primary].color }}>
+                    {DIMENSIONS[archetype.primary].icon} {archetype.primary} {archetype.primaryScore}%
+                  </span>
+                  <span style={{ color: DIMENSIONS[archetype.secondary].color }}>
+                    {DIMENSIONS[archetype.secondary].icon} {archetype.secondary} {archetype.secondaryScore}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Timeline */}
+          <div style={{ ...styles.card, padding: "20px" }}>
+            <h3 style={{ color: "white", fontSize: "16px", marginBottom: "16px" }}>📅 Test History</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {Object.entries(completedTopics).map(([topicId, data]) => {
+                const topic = allTopics.find(t => t.id === parseInt(topicId));
+                if (!topic) return null;
+                return (
+                  <div key={topicId} style={{
+                    display: "flex", alignItems: "center", gap: "12px",
+                    padding: "12px", background: "rgba(255,255,255,0.05)", borderRadius: "12px"
+                  }}>
+                    <div style={{ fontSize: "24px" }}>{topic.emoji}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: "white", fontSize: "13px", fontWeight: "600" }}>{topic.title}</div>
+                      <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "11px" }}>{data.personality}</div>
+                    </div>
+                    <div style={{ color: DIMENSIONS[topic.dimension].color, fontSize: "14px", fontWeight: "700" }}>
+                      {data.score}%
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <button onClick={() => setScreen("dashboard")} style={{ ...styles.btn, ...styles.btnSecondary, marginTop: "16px" }}>
+            ← กลับไป Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+
+  // Quiz Screen — Multiple Choice
+  const QuizScreen = () => {
+    const questions = quizQuestions[currentTopic?.id] || quizQuestions[1];
+    const q = questions[currentQ];
+    const dim = DIMENSIONS[currentTopic?.dimension || "BOND"];
+    
+    if (!q) return null;
+
+    return (
+      <div style={{...styles.container, background: dimensionTheme[currentTopic?.dimension || "BOND"].bg}}>
+        <div style={{...styles.glowOrb, width: 250, height: 250, background: dim.color, top: -80, right: -80, opacity: 0.2}} />
+        
+        <div style={styles.content}>
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", marginBottom: "20px" }}>
+            <button onClick={() => setScreen("dashboard")} style={{ background: "none", border: "none", fontSize: "24px", cursor: "pointer", color: "white" }}>←</button>
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <span style={{ fontSize: "12px", color: dim.color }}>{currentTopic?.emoji} {currentTopic?.title}</span>
+            </div>
+            <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "12px" }}>{currentQ + 1}/10</span>
+          </div>
+
+          {/* Progress */}
+          <div style={{ height: "4px", background: "rgba(255,255,255,0.1)", borderRadius: "2px", marginBottom: "24px", overflow: "hidden" }}>
+            <div style={{ width: `${(currentQ + 1) * 10}%`, height: "100%", background: dim.color, transition: "width 0.3s" }} />
+          </div>
+
+          {/* Question */}
+          <div style={{ ...styles.card, marginBottom: "20px" }}>
+            <p style={{ color: "white", fontSize: "16px", lineHeight: "1.6", textAlign: "center" }}>
+              {q.q}
+            </p>
+          </div>
+
+          {/* Answers */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {q.a.map((answer, idx) => (
+              <button key={idx} onClick={() => handleAnswer(idx, q.s[idx])}
+                style={{
+                  ...styles.btn, ...styles.btnSecondary,
+                  textAlign: "left", padding: "16px",
+                  display: "flex", alignItems: "center", gap: "12px"
+                }}>
+                <span style={{
+                  width: "28px", height: "28px", borderRadius: "50%",
+                  background: "rgba(255,255,255,0.1)", display: "flex",
+                  alignItems: "center", justifyContent: "center", fontSize: "12px"
+                }}>
+                  {["A", "B", "C", "D"][idx]}
+                </span>
+                <span style={{ flex: 1, fontSize: "14px" }}>{answer}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Slider Quiz Screen
+  const SliderQuizScreen = () => {
+    const [sliderValues, setSliderValues] = useState(Array(10).fill(3));
+    const [currentSlide, setCurrentSlide] = useState(0);
+    const questions = sliderQuestions[currentTopic?.id] || sliderQuestions[5];
+    const dim = DIMENSIONS[currentTopic?.dimension || "DRIVE"];
+    
+    const handleSliderChange = (value) => {
+      const newValues = [...sliderValues];
+      newValues[currentSlide] = value;
+      setSliderValues(newValues);
+    };
+
+    const nextSlide = () => {
+      if (currentSlide < 9) {
+        setCurrentSlide(currentSlide + 1);
+      } else {
+        handleSliderSubmit(sliderValues);
+      }
+    };
+
+    return (
+      <div style={{...styles.container, background: dimensionTheme[currentTopic?.dimension || "DRIVE"].bg}}>
+        <div style={{...styles.glowOrb, width: 250, height: 250, background: dim.color, top: -80, left: -80, opacity: 0.2}} />
+        
+        <div style={styles.content}>
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", marginBottom: "20px" }}>
+            <button onClick={() => setScreen("dashboard")} style={{ background: "none", border: "none", fontSize: "24px", cursor: "pointer", color: "white" }}>←</button>
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <span style={{ fontSize: "12px", color: dim.color }}>{currentTopic?.emoji} {currentTopic?.title}</span>
+            </div>
+            <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "12px" }}>{currentSlide + 1}/10</span>
+          </div>
+
+          {/* Progress */}
+          <div style={{ height: "4px", background: "rgba(255,255,255,0.1)", borderRadius: "2px", marginBottom: "24px", overflow: "hidden" }}>
+            <div style={{ width: `${(currentSlide + 1) * 10}%`, height: "100%", background: dim.color, transition: "width 0.3s" }} />
+          </div>
+
+          {/* Question */}
+          <div style={{ ...styles.card, marginBottom: "24px" }}>
+            <p style={{ color: "white", fontSize: "16px", lineHeight: "1.6", textAlign: "center" }}>
+              {questions[currentSlide]?.q}
+            </p>
+          </div>
+
+          {/* Slider */}
+          <div style={{ padding: "0 20px", marginBottom: "24px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px" }}>
+              <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "12px" }}>{questions[currentSlide]?.min}</span>
+              <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "12px" }}>{questions[currentSlide]?.max}</span>
+            </div>
+            
+            <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginBottom: "16px" }}>
+              {["😴", "😐", "🙂", "😊", "⚡"].map((emoji, i) => (
+                <button key={i} onClick={() => handleSliderChange(i + 1)}
+                  style={{
+                    width: "48px", height: "48px", borderRadius: "50%",
+                    background: sliderValues[currentSlide] === i + 1 ? dim.color : "rgba(255,255,255,0.1)",
+                    border: "none", fontSize: "24px", cursor: "pointer",
+                    transform: sliderValues[currentSlide] === i + 1 ? "scale(1.2)" : "scale(1)",
+                    transition: "all 0.2s"
+                  }}>
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button onClick={nextSlide} style={{...styles.btn, ...styles.btnPrimary}}>
+            {currentSlide < 9 ? "ถัดไป →" : "ดูผลลัพธ์ 🎉"}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // Swipe Quiz Screen
+  const SwipeQuizScreen = () => {
+    const [currentCard, setCurrentCard] = useState(0);
+    const [likes, setLikes] = useState(0);
+    const items = swipeQuestions[currentTopic?.id] || swipeQuestions[4];
+    const dim = DIMENSIONS[currentTopic?.dimension || "DRIVE"];
+    
+    const handleSwipe = (liked) => {
+      if (liked) setLikes(likes + 1);
+      
+      if (currentCard < 9) {
+        setCurrentCard(currentCard + 1);
+      } else {
+        handleSwipeComplete(likes + (liked ? 1 : 0));
+      }
+    };
+
+    const item = items[currentCard];
+
+    return (
+      <div style={{...styles.container, background: dimensionTheme[currentTopic?.dimension || "DRIVE"].bg}}>
+        <div style={{...styles.glowOrb, width: 250, height: 250, background: dim.color, bottom: 100, right: -80, opacity: 0.2}} />
+        
+        <div style={styles.content}>
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", marginBottom: "20px" }}>
+            <button onClick={() => setScreen("dashboard")} style={{ background: "none", border: "none", fontSize: "24px", cursor: "pointer", color: "white" }}>←</button>
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <span style={{ fontSize: "12px", color: dim.color }}>{currentTopic?.emoji} {currentTopic?.title}</span>
+            </div>
+            <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "12px" }}>{currentCard + 1}/10</span>
+          </div>
+
+          {/* Progress */}
+          <div style={{ height: "4px", background: "rgba(255,255,255,0.1)", borderRadius: "2px", marginBottom: "24px", overflow: "hidden" }}>
+            <div style={{ width: `${(currentCard + 1) * 10}%`, height: "100%", background: dim.color, transition: "width 0.3s" }} />
+          </div>
+
+          {/* Card */}
+          <div style={{
+            ...styles.card, padding: "40px 20px", textAlign: "center",
+            minHeight: "200px", display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center", marginBottom: "24px"
+          }}>
+            <div style={{ fontSize: "64px", marginBottom: "16px" }}>{item?.emoji}</div>
+            <h3 style={{ color: "white", fontSize: "24px", marginBottom: "8px" }}>{item?.item}</h3>
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "14px" }}>{item?.desc}</p>
+          </div>
+
+          {/* Swipe Buttons */}
+          <div style={{ display: "flex", justifyContent: "center", gap: "24px" }}>
+            <button onClick={() => handleSwipe(false)}
+              style={{
+                width: "64px", height: "64px", borderRadius: "50%",
+                background: "rgba(255,100,100,0.2)", border: "2px solid #FF6B6B",
+                fontSize: "28px", cursor: "pointer"
+              }}>
+              👎
+            </button>
+            <button onClick={() => handleSwipe(true)}
+              style={{
+                width: "64px", height: "64px", borderRadius: "50%",
+                background: "rgba(100,255,100,0.2)", border: "2px solid #6BCB77",
+                fontSize: "28px", cursor: "pointer"
+              }}>
+              👍
+            </button>
+          </div>
+
+          <p style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: "12px", marginTop: "16px" }}>
+            น้องหมาชอบกินไหม?
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+
+  // Result Screen
+  const ResultScreen = () => {
+    const personality = getPersonality(quizScore, currentTopic?.id);
+    const dim = DIMENSIONS[currentTopic?.dimension || "BOND"];
+    const theme = dimensionTheme[currentTopic?.dimension || "BOND"];
+
+    return (
+      <div style={{...styles.container, background: theme.bg}}>
+        <div style={{...styles.glowOrb, width: 300, height: 300, background: theme.accent, top: -100, right: -100, opacity: 0.3}} />
+        <div style={{...styles.glowOrb, width: 200, height: 200, background: theme.accent, bottom: 100, left: -80, opacity: 0.2}} />
+        
+        <div style={styles.content}>
+          {/* Header */}
+          <div style={{ textAlign: "center", marginBottom: "24px" }}>
+            <div style={{ fontSize: "14px", color: theme.accent, marginBottom: "8px" }}>
+              {currentTopic?.emoji} {currentTopic?.title}
+            </div>
+            <h2 style={{ fontSize: "28px", color: "white", fontWeight: "700" }}>
+              Result
+            </h2>
+          </div>
+
+          {/* Score Circle */}
+          <div style={{ textAlign: "center", marginBottom: "24px" }}>
+            <div style={{
+              width: "140px", height: "140px", borderRadius: "50%",
+              background: `conic-gradient(${theme.accent} ${quizScore}%, rgba(255,255,255,0.1) ${quizScore}%)`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              margin: "0 auto", position: "relative"
+            }}>
+              <div style={{
+                width: "110px", height: "110px", borderRadius: "50%",
+                background: "#1a1025", display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center"
+              }}>
+                <span style={{ fontSize: "36px", fontWeight: "700", color: theme.accent }}>{quizScore}</span>
+                <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)" }}>%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Personality Card */}
+          <div style={{ ...styles.card, padding: "24px", borderColor: theme.accent, marginBottom: "16px" }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "48px", marginBottom: "12px" }}>{personality.emoji}</div>
+              <h3 style={{ fontSize: "22px", color: theme.accent, fontWeight: "700", marginBottom: "8px" }}>
+                {personality.type}
+              </h3>
+              <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "14px", lineHeight: "1.6", marginBottom: "16px" }}>
+                {personality.tagline}
+              </p>
+              {personality.rarity && (
+                <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)", marginBottom: "12px" }}>
+                  {personality.rarity}
+                </div>
+              )}
+            </div>
+            
+            {/* Traits */}
+            {personality.traits && personality.traits.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "center", marginTop: "16px" }}>
+                {personality.traits.map((trait, i) => (
+                  <span key={i} style={{
+                    padding: "6px 12px", borderRadius: "20px",
+                    background: `${theme.accent}20`, color: theme.accent,
+                    fontSize: "11px", fontWeight: "500"
+                  }}>
+                    {trait}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Wow Fact */}
+          {personality.wow && (
+            <div style={{ ...styles.card, padding: "16px", marginBottom: "16px" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                <span style={{ fontSize: "24px" }}>✨</span>
+                <div>
+                  <div style={{ color: theme.accent, fontSize: "12px", fontWeight: "600", marginBottom: "4px" }}>WOW FACT</div>
+                  <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", lineHeight: "1.5" }}>
+                    {personality.wow}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Science Secret */}
+          {personality.scienceSecret && (
+            <div style={{ ...styles.card, padding: "16px", marginBottom: "16px" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                <span style={{ fontSize: "24px" }}>🔬</span>
+                <div>
+                  <div style={{ color: theme.accent, fontSize: "12px", fontWeight: "600", marginBottom: "4px" }}>SCIENCE SECRET</div>
+                  <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", lineHeight: "1.5" }}>
+                    {personality.scienceSecret}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Fun Fact */}
+          {personality.funFact && (
+            <div style={{ ...styles.card, padding: "16px", marginBottom: "16px" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                <span style={{ fontSize: "24px" }}>💡</span>
+                <div>
+                  <div style={{ color: theme.accent, fontSize: "12px", fontWeight: "600", marginBottom: "4px" }}>FUN FACT</div>
+                  <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", lineHeight: "1.5" }}>
+                    {personality.funFact}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Action Today */}
+          {personality.actionToday && personality.actionToday.length > 0 && (
+            <div style={{ ...styles.card, padding: "16px", marginBottom: "16px" }}>
+              <div style={{ color: theme.accent, fontSize: "12px", fontWeight: "600", marginBottom: "12px" }}>
+                🎯 ACTION TODAY
+              </div>
+              {personality.actionToday.map((action, i) => (
+                <div key={i} style={{ 
+                  display: "flex", alignItems: "flex-start", gap: "8px", 
+                  marginBottom: "8px", color: "rgba(255,255,255,0.8)", fontSize: "13px" 
+                }}>
+                  <span>•</span>
+                  <span>{action}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Hook */}
+          {personality.hook && (
+            <div style={{ 
+              padding: "16px", borderRadius: "16px",
+              background: `linear-gradient(135deg, ${theme.accent}30, ${theme.accent}10)`,
+              border: `1px dashed ${theme.accent}50`, marginBottom: "20px"
+            }}>
+              <p style={{ color: "white", fontSize: "13px", textAlign: "center" }}>
+                {personality.hook}
+              </p>
+            </div>
+          )}
+
+          {/* Buttons */}
+          <button onClick={() => setScreen("dashboard")} style={{...styles.btn, ...styles.btnPrimary}}>
+            🧬 กลับไป Dashboard
+          </button>
+          
+          <button onClick={() => setScreen("profile")} style={{...styles.btn, ...styles.btnSecondary, marginTop: "12px"}}>
+            👤 ดู Dog Profile
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MAIN RENDER
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // Determine which quiz type to show
+  const renderQuiz = () => {
+    if (showResult) return <ResultScreen />;
+    
+    const quizType = currentTopic?.quizType || "choice";
+    switch (quizType) {
+      case "slider":
+        return <SliderQuizScreen />;
+      case "swipe":
+        return <SwipeQuizScreen />;
+      default:
+        return <QuizScreen />;
+    }
+  };
+
   return (
     <>
-      {screen === 'landing' && <LandingScreen />}
-      {screen === 'overview' && <OverviewScreen />}
-      {screen === 'topic-intro' && <TopicIntroScreen />}
-      {screen === 'quiz' && <QuizScreen />}
-      {screen === 'result' && <ResultScreen />}
-      {screen === 'auth' && <AuthScreen />}
-      {screen === 'dashboard' && <DashboardScreen />}
-      
-      {showLeadGate && <LeadGateModal />}
-      {showBadgeModal && selectedBadge && <BadgePreviewModal />}
-      {showDimensionPopup && <DimensionPopup />}
+      {screen === "landing" && <LandingScreen />}
+      {screen === "onboarding" && <OnboardingScreen />}
+      {screen === "auth" && <AuthScreen />}
+      {screen === "dashboard" && <DashboardScreen />}
+      {screen === "profile" && <DogProfileScreen />}
+      {screen === "quiz" && renderQuiz()}
     </>
   );
 }
